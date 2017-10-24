@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 15e5112285777bd43b2d04ef302b360c
+timeCreated: 1507775219
+licenseType: Free
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences:
+  - cam: {instanceID: 0}
+  - gameManager: {instanceID: 0}
+  - targetingReticulePrefab: {instanceID: 0}
+  - ship: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
