@@ -1,8 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.UI;
 using UnityEngine;
 
 public class Player : MonoBehaviour {
+
     static int playerCount = 0;// a running total of all players in the game
     public int fuel = 0;// fuel meter for this character
     public int FUEL_LIMIT;// plz dont change this value, max fuel allowed
@@ -22,14 +24,15 @@ public class Player : MonoBehaviour {
     private LineRenderer lineRen;
     public Color reticuleColor, gravIndicator, momentumIndicator, movementIndicator, resultantIndicator;
     public int numTurnsToPredictMovement;
+    public float smoothness;
 
     private TargetingReticuleController targetingReticule;
     private SpriteRenderer targetingReticuleSR;
-    
+
 
     private bool hasEndedTurn = false;
     // Use this for initialization
-    void Start () {
+    void Start() {
         // player count
         ++playerCount;
         playerNum = playerCount;
@@ -50,13 +53,13 @@ public class Player : MonoBehaviour {
         // positional initialization
         //currentPosition = new Vector3(transform.position.x, transform.position.y, zPos);
         //previousPosition = currentPosition;
+        genCubicBez(20, new Vector3(0, 0, -10), new Vector3(5, 5, -10), new Vector3(5, 5, -10), new Vector3(10, 0, -10));
 
     }
-	
-	// Update is called once per frame
-	void Update () {
-        // render player
 
+    // Update is called once per frame
+    void Update() {
+        // render player
         // if its the player's turn still and more input is needed to advance
         if (cursorIsActive && !hasEndedTurn && fuel > 0 && noMovementActionYetCompleted() && noCombatActionYetCompleted())
         {
@@ -67,7 +70,7 @@ public class Player : MonoBehaviour {
         {
             hasEndedTurn = true;
         }
-	}
+    }
 
     bool noMovementActionYetCompleted()
     {
@@ -75,7 +78,7 @@ public class Player : MonoBehaviour {
         {
             return false;//exit the function and keep checking for input
         }
-        else if (thrusterOverdriveSelected && thrusterOverdriveSelect())// if player wants to use overdriv and if overdrive successfully activates
+        else if (thrusterOverdriveSelected && thrusterOverdriveSelect())// if player wants to use overdrive and if overdrive successfully activates
         {
             return false;
         }
@@ -165,7 +168,7 @@ public class Player : MonoBehaviour {
             Vector2 temp = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
             Debug.Log("trying to execute thruster at selected tile: " + temp + " whose index values are: tiles[" + lenToIndex(temp.x) + "][" + heightToIndex(temp.y) + "]");
             // if a tile on the map is selected
-            if (0 <= lenToIndex(temp.x) && lenToIndex(temp.x) <= MAP_LEN-1 && 0 <= heightToIndex(temp.y) && heightToIndex(temp.y) <= MAP_HGHT - 1)
+            if (0 <= lenToIndex(temp.x) && lenToIndex(temp.x) <= MAP_LEN - 1 && 0 <= heightToIndex(temp.y) && heightToIndex(temp.y) <= MAP_HGHT - 1)
             {
                 if (/*within 1 tile of the player position in x and y*/ (Mathf.Abs(lenToIndex(temp.x) - lenToIndex(currentPosition.x)) <= 1f) && (Mathf.Abs(lenToIndex(temp.y) - lenToIndex(currentPosition.y)) <= 1f))
                 {
@@ -177,7 +180,7 @@ public class Player : MonoBehaviour {
         }
         return false;
     }
-    
+
     bool thrusterOverdriveSelect()
     {
         showFuturePath(numTurnsToPredictMovement, resultantIndicator, false);
@@ -292,7 +295,7 @@ public class Player : MonoBehaviour {
             {
                 gravity = gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)].gravityStrength * new Vector2(1, -1).normalized * Mathf.Sqrt(2);
             }
-        }else
+        } else
         {
             //invalid gravity position or empty valid position
             gravity = new Vector2();
@@ -311,7 +314,7 @@ public class Player : MonoBehaviour {
     {
         //this function calculates momentum but doesnt apply it
         // applying grav and momentum happen at a different time in the turn order, so its in another function for that
-        
+
         //first things first move the player, so momentum can correctly update for the next turn.
         //currentPosition += movement;
 
@@ -331,7 +334,7 @@ public class Player : MonoBehaviour {
         Debug.Log("Momentum is now " + momentum);// + "; currPos - prevPos =  " + currentPosition + " - " + previousPosition);
 
 
-        
+
         movement -= movement;//resetting movement vector for next turn
         transform.position = new Vector3(currentPosition.x, currentPosition.y, zPos);
         Debug.Log("Moving player to " + new Vector2(lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)));
@@ -340,13 +343,13 @@ public class Player : MonoBehaviour {
     public void showFuturePath(int numTurns, Color pathColor, bool usingTeleporter)//numTurns is number of turns to project out, path color starts path that color, using teleporter just tells us if we need to calc momentum the first time or not
     {
         bool firstTurn = true;// here to just do something special for the first calc
-        Vector3[] points = new Vector3[numTurns + 1]; // +1 for first turn drawing from current position
+        Vector3[] points = new Vector3[numTurns + 1 + 1]; // +1 for first turn drawing from current position, + 1 for extra prediction at end to assist in path smoothing
         // nothing yet calculated, need to calc both grav and momentum from here, before turn executes
         points[0] = transform.position;
         Vector2 tempPosition = currentPosition, tempPreviousPosition = previousPosition;
         Vector2 tempGrav = new Vector2(), tempMomentum = new Vector2();
 
-        for (int i = 0; i < numTurns; ++i)
+        for (int i = 0; i < numTurns + 1; ++i) // (the +1 in the test is to generate one extra, not needed point, so that the smoothing calculations can have info from which to average)
         {
             //calc gravity this turn
             // if checking a valid point in the grav grid
@@ -388,9 +391,9 @@ public class Player : MonoBehaviour {
                     // use the current mouse position as the theoretical end point of this turn's movement
                     tempMomentum = resolveToTile(Input.mousePosition.x, Input.mousePosition.y) - tempPreviousPosition;
                     firstTurn = false;
-                    
+
                 }
-            }else
+            } else
             {
                 // not first turn, so not predicting movement on future turns
                 tempMomentum = tempPosition - tempPreviousPosition;
@@ -399,15 +402,16 @@ public class Player : MonoBehaviour {
             //add momemtum and grav to tempPosition and then add it to the master list
             tempPreviousPosition = tempPosition;
             tempPosition += (tempGrav + tempMomentum);
-        
-            points[i+1] = new Vector3(tempPosition.x, tempPosition.y, zPos);// +1 so that it doesnt overwrite the special first entry, current position
+            points[i + 1] = new Vector3(tempPosition.x, tempPosition.y, zPos);// +1 so that it doesnt overwrite the special first entry, current position
         }
+        points = smoothPath(points, 10);
         drawPath(points, pathColor, new Color(1, 1, 1, 0));// 1,1,1,0 is white with fully transparant alpha
+
     }
 
-     public void drawPath(Vector3[] points, Color start, Color end)
+    public void drawPath(Vector3[] points, Color start, Color end)
     {
-        lineRen.numPositions = points.Length;
+        lineRen.positionCount = points.Length;
         lineRen.SetPositions(points);
         lineRen.startColor = start;
         lineRen.endColor = end;
@@ -424,7 +428,7 @@ public class Player : MonoBehaviour {
         missileSelected = false;
         piercingMissileSelected = false;
         targetingReticule.setColor(reticuleColor);
-        targetingReticuleSR.enabled = false; 
+        targetingReticuleSR.enabled = false;
     }
 
     public void enableReticule()
@@ -456,6 +460,151 @@ public class Player : MonoBehaviour {
 
     private int heightToIndex(float Ypos)
     {
-        return (Mathf.RoundToInt(Ypos + (MAP_HGHT- 1) / 2f));
+        return (Mathf.RoundToInt(Ypos + (MAP_HGHT - 1) / 2f));
+    }
+
+    //for generating smooth looking curves, given exact points and a number of steps
+    private Vector3[] genCubicBez(int jumpsToMake/* >= 0*/, Vector3 A, Vector3 B, Vector3 C, Vector3 D)
+    {
+        Vector3[] toReturn = new Vector3[jumpsToMake + 1];
+        //t1 points
+        Vector3 ab, bc, cd;
+        //t2 points
+        Vector3 abbc, bccd;
+        //t3 point
+        Vector3 abbcbccd;
+        for (int i = 0; i <= jumpsToMake; ++i)
+        {
+            //t1 updates
+            ab = (1.0f * i / jumpsToMake) * B + (1.0f * (jumpsToMake - i) / jumpsToMake) * A;
+            bc = (1.0f * i / jumpsToMake) * C + (1.0f * (jumpsToMake - i) / jumpsToMake) * B;
+            cd = (1.0f * i / jumpsToMake) * D + (1.0f * (jumpsToMake - i) / jumpsToMake) * C;
+            //t2 updates
+            abbc = (1.0f * i / jumpsToMake) * bc + (1.0f * (jumpsToMake - i) / jumpsToMake) * ab;
+            bccd = (1.0f * i / jumpsToMake) * cd + (1.0f * (jumpsToMake - i) / jumpsToMake) * bc;
+            //t3 update
+            abbcbccd = (1.0f * i / jumpsToMake) * bccd + (1.0f * (jumpsToMake - i) / jumpsToMake) * abbc;
+            //Debug.Log(abbcbccd);
+            toReturn[i] = abbcbccd;
+        }
+        //lineRen.positionCount = toReturn.Length;
+        //lineRen.SetPositions(toReturn);
+        return toReturn;
+    }
+    //specificaly takes a list of vectors and makes a smooth path out of them through using averaging of vectors and the bezier curve function above
+    private Vector3[] smoothPath(Vector3[] originalPath, int jumps)
+    {
+        Vector3[] finalPath = new Vector3[(originalPath.Length - 2) * jumps + 1];// final output
+        Vector3[] temp = new Vector3[originalPath.Length * 3 - 3];// helper structure. It gets big for good reason, all helper bezier curve directing things are inserted into this list
+        //first entry in originalPath is current position, last entry is the extra position. No values from originalPath can not be present at equal interval in the final path, while this function is still correct
+        if (originalPath.Length <= 3)
+        {
+            // if there are not enough entries to create curves from, its a line or an invalid thing we were passed, so just return what was passed.
+            return originalPath;
+        } else
+        {
+            //setting the first value of temp to the previousPosition value
+            temp[0] = new Vector3(previousPosition.x, previousPosition.y, zPos);
+            //setting each true path value to its correct spaced out point in the temp array
+            for (int i = 0; i < originalPath.Length - 1; ++i) {
+                temp[3 * i + 1] = originalPath[i];
+            }
+            //setting the last value of temp to the last value of originalPath
+            temp[temp.Length - 1] = originalPath[originalPath.Length - 1];
+
+            //manually setting the first forward facing bezier helper point
+            temp[2] = temp[1] + smoothness * (temp[1] - temp[0] + temp[4] - temp[1]);
+            //setting all inner forwards facing bezier helpers
+            for (int i = 5; i < temp.Length - 3; i += 3)
+            {
+                temp[i] = temp[i - 1] + smoothness * (temp[i - 1] - temp[i - 4] + temp[i + 2] - temp[i - 1]);
+            }
+            //setting all inner backwards facing bezier helpers
+            for (int i = 3; i < temp.Length - 3; i += 3)
+            {
+                temp[i] = temp[i + 1] - smoothness * (temp[i + 1] - temp[i - 2] + temp[i + 4] - temp[i + 1]);
+            }
+            //manually setting last backwards facing bezier helper
+            temp[temp.Length - 3] = temp[temp.Length - 2] - smoothness * (temp[temp.Length - 1] - temp[temp.Length - 2] + temp[temp.Length - 2] - temp[temp.Length - 5]);
+
+            for (int i = 1; i < temp.Length - 2; i += 3)
+            {
+                //checking for overlapping sections, and removing jank bezier helper confusion
+                Vector3 changeTo = resolveIntersections(temp[i], temp[i + 1], temp[i + 2], temp[i + 3]);
+                //Debug.Log("Testing the following: " + temp[i] + " " + temp[i + 1] + " " + temp[i + 2] + " " + temp[i + 3] + "\nand returning: " + changeTo);
+                if (changeTo.z == zPos)
+                {
+                    temp[i + 1] = changeTo;
+                    temp[i + 2] = changeTo;
+                }//else do nothing
+                 //Debug.Log(" ");
+                 //Debug.Log(findSmallestTriArea(temp[i], temp[i + 1], temp[i + 2], temp[i + 3]));
+            //    Debug.Log("step num " + (i+2)/3);
+             //   findSmallestTriArea(temp[i], temp[i + 1], temp[i + 2], temp[i + 3]);
+            /*
+                //more checking, this time removing slim triangles that create hiccups in continuous path
+                if (temp[i+1] != temp[i+2] && findSmallestTriArea(temp[i], temp[i + 1], temp[i + 2], temp[i + 3]) > 70f)
+                {
+                    //Debug.Log(findSmallestTriArea(temp[i], temp[i + 1], temp[i + 2], temp[i + 3]));
+                    temp[i + 1] = temp[i];
+                    temp[i + 2] = temp[i + 3];
+                }*/
+            }
+            /*string tempstr = "";
+            for (int i = 0; i < temp.Length; ++i)
+            {
+                tempstr += temp[i].ToString() + "  ";
+            }
+            Debug.Log(tempstr);*/
+
+            //creating bezier curves...
+            finalPath[0] = originalPath[0];
+            for (int i = 1, block = 0; i < temp.Length - 2; i += 3, block += jumps)
+            {
+                Vector3[] veryTemp = genCubicBez(jumps, temp[i], temp[i + 1], temp[i + 2], temp[i + 3]);
+                for (int j = 1; j < veryTemp.Length; ++j)
+                {
+                    finalPath[block + j] = veryTemp[j];
+                }
+            }
+        }
+        return finalPath;
+    }
+
+    private Vector3 resolveIntersections(Vector3 st, Vector3 h1, Vector3 h2, Vector3 end)
+    {
+        //return 1 / 2f * (h1 + h2);
+        float x1 = (h1 - st).x, y1 = (h1 - st).y, x2 = (end - h2).x, y2 = (end - h2).y;
+        //Debug.Log(y1 / x1 + "  " + y2 / x2);
+        if (!Mathf.Approximately(y1, 0f) && !Mathf.Approximately(y2, 0f))
+        {
+            float yInt1 = st.y - (y1 / x1) * st.x;
+            float yInt2 = end.y - (y2 / x2) * end.x;
+            float xCollisionPoint = (yInt2 - yInt1) / ((y1 / x1) - (y2 / x2));
+            if (((st.x <= xCollisionPoint && xCollisionPoint <= h1.x) || (st.x >= xCollisionPoint && xCollisionPoint >= h1.x)) && ((h2.x <= xCollisionPoint && xCollisionPoint <= end.x) || (h2.x >= xCollisionPoint && xCollisionPoint >= end.x)))
+            {
+                //Debug.Log("!!!!Intersection!!!!");
+                //Debug.Log(((y1 / x1) * xCollisionPoint + yInt1) + " vs " + ((y2 / x2) * xCollisionPoint + yInt2));
+                return new Vector3(xCollisionPoint, (y1 / x1) * xCollisionPoint + yInt1, zPos);
+            }
+            //Debug.Log("Segments do not intersect");
+        }
+        else
+        {
+            return new Vector3(0, 0, zPos + 20f);// something specifically not possible here
+        }
+        return new Vector3(0, 0, zPos + 20f);// something specifically not possible here
+    }
+    private float findSmallestTriArea(Vector3 st, Vector3 h1, Vector3 h2, Vector3 end)
+    {
+        st.z = zPos; h1.z = zPos; h2.z = zPos; end.z = zPos;
+        //tri 1 is st, h1, and end; tri 2 is h1, h2, end
+        float s1 = (Vector3.Distance(st, h1) + Vector3.Distance(h1, h2) + Vector3.Distance(h2, st));
+        float s2 = (Vector3.Distance(h1, h2) + Vector3.Distance(h2, end) + Vector3.Distance(end, h1));
+        float area1 = Mathf.Sqrt(s1 * (s1 - Vector3.Distance(st, h1)) * (s1 - Vector3.Distance(h1, h2)) * (s1 - Vector3.Distance(h2, st)));
+        float area2 = Mathf.Sqrt(s2 * (s2 - Vector3.Distance(h1, h2)) * (s2 - Vector3.Distance(h2, end)) * (s2 - Vector3.Distance(end, h1)));
+        //Debug.Log(area1 + " vs " + area2 + "     Choosing: " + ((area1 >= area2) ? (area1) : (area2)));
+        Debug.Log("t1 area:length ratio = " + area1/s1 + "     t2 = " + area2/s2);
+        return (area1>=area2)?(area1):(area2);
     }
 }

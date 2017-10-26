@@ -39,7 +39,7 @@ public class StarProperties : MonoBehaviour {
             circle[(int)i] = new Vector3(range * Mathf.Cos(angle * Mathf.Deg2Rad) + transform.position.x, range * Mathf.Sin(angle * Mathf.Deg2Rad) + transform.position.y, circleRenderHeight);
         }
         circle[numCircleVertecies] = new Vector3(range * Mathf.Cos(0 * Mathf.Deg2Rad) + transform.position.x, range * Mathf.Sin(0 * Mathf.Deg2Rad) + transform.position.y, circleRenderHeight);
-        l.numPositions = circle.Length;
+        l.positionCount = circle.Length;
         l.SetPositions(circle);
         l.startColor = color;
         l.endColor = color;
