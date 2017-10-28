@@ -305,18 +305,19 @@ public class Player : MonoBehaviour {
         previousPosition = currentPosition;// previous position really means position at the start of a turn, before anything moves you; ie now.
         currentPosition += gravity;// as determined above
         currentPosition += momentum;// as determined by other movement function
+        //snapCamera to this
+        //animate motion
+        //free up camera
         transform.position = new Vector3(currentPosition.x, currentPosition.y, zPos);
 
 
     }
 
-    public void updateMovementandMomentum()
+    public void updateMomentum()
     {
         //this function calculates momentum but doesnt apply it
         // applying grav and momentum happen at a different time in the turn order, so its in another function for that
 
-        //first things first move the player, so momentum can correctly update for the next turn.
-        //currentPosition += movement;
 
         //after applying momentum, update it (updating moment varies on whether or not you teleported, because teleporting shouldnt give you momentum, just positional changes should)
         if (teleportSelected)

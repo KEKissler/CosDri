@@ -150,7 +150,7 @@ public class GameManager : MonoBehaviour {
         // if chosen player ends their turn, set the next player in line to have a turn and repeat
         if (players[selectedPlayer].GetHasEndedTurn())
         {
-            players[selectedPlayer].updateMovementandMomentum();
+            players[selectedPlayer].updateMomentum();//doesn't actually move the player
             players[selectedPlayer].resetTurnVars();// previous turn ends
 
             
