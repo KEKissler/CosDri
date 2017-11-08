@@ -24,7 +24,6 @@ public class CameraController : MonoBehaviour {
         else
         {
             Vector3 relPos = cam.ScreenToViewportPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, transform.position.z));
-            Debug.Log("point at " + relPos.x + ", " + relPos.y);
 
             //checks x position edge pan
             if (relPos.x >= 0 && relPos.x < panBoxPercentageScreenSize)

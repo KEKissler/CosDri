@@ -20,7 +20,7 @@ public class Player : MonoBehaviour {
     public GameManager gameManager;
     public GameObject targetingReticulePrefab;
     public Sprite ship;
-    private SpriteRenderer sr;
+    public GameObject offsetShipImage;
     private LineRenderer lineRen;
     public Color reticuleColor, gravIndicator, momentumIndicator, movementIndicator, resultantIndicator;
     public int numTurnsToPredictMovement;
@@ -31,6 +31,8 @@ public class Player : MonoBehaviour {
 
 
     private bool hasEndedTurn = false;
+    public bool isInFirst;// for checkpoint calculations and potentially end of game calculations
+    public int numCheckpointsPassed = 0; // also for checkpoint calculations and end of game calcss 
     // Use this for initialization
     void Start() {
         // player count
@@ -38,10 +40,11 @@ public class Player : MonoBehaviour {
         playerNum = playerCount;
 
         //Sprite Renderer and Line Renderer management
-        sr = GetComponent<SpriteRenderer>();
         lineRen = GetComponent<LineRenderer>();
-        sr.sprite = ship;
-
+        //creating a slightly offset ship image location, because messing with player position for visuals' sake seems like a bad idea
+        GameObject shipSprite = Instantiate(offsetShipImage,new Vector3(transform.position.x + 0.0f, transform.position.y -0.0f, zPos), Quaternion.identity, this.transform);
+        shipSprite.GetComponent<SpriteRenderer>().sprite = ship;
+        
         // managing own targeting reticule
         GameObject temp = Instantiate(targetingReticulePrefab);
         targetingReticuleSR = temp.GetComponent<SpriteRenderer>();
@@ -53,13 +56,14 @@ public class Player : MonoBehaviour {
         // positional initialization
         //currentPosition = new Vector3(transform.position.x, transform.position.y, zPos);
         //previousPosition = currentPosition;
-        genCubicBez(20, new Vector3(0, 0, -10), new Vector3(5, 5, -10), new Vector3(5, 5, -10), new Vector3(10, 0, -10));
+        //genCubicBez(20, new Vector3(0, 0, -10), new Vector3(5, 5, -10), new Vector3(5, 5, -10), new Vector3(10, 0, -10));
 
     }
 
     // Update is called once per frame
     void Update() {
         // render player
+        
         // if its the player's turn still and more input is needed to advance
         if (cursorIsActive && !hasEndedTurn && fuel > 0 && noMovementActionYetCompleted() && noCombatActionYetCompleted())
         {
@@ -308,7 +312,7 @@ public class Player : MonoBehaviour {
         //snapCamera to this
         //animate motion
         //free up camera
-        transform.position = new Vector3(currentPosition.x, currentPosition.y, zPos);
+        transform.position = posRealignedToGrid(new Vector3(currentPosition.x, currentPosition.y, zPos));
 
 
     }
@@ -337,7 +341,7 @@ public class Player : MonoBehaviour {
 
 
         movement -= movement;//resetting movement vector for next turn
-        transform.position = new Vector3(currentPosition.x, currentPosition.y, zPos);
+        transform.position = posRealignedToGrid(new Vector3(currentPosition.x, currentPosition.y, zPos));
         Debug.Log("Moving player to " + new Vector2(lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)));
     }
 
@@ -347,6 +351,7 @@ public class Player : MonoBehaviour {
         Vector3[] points = new Vector3[numTurns + 1 + 1]; // +1 for first turn drawing from current position, + 1 for extra prediction at end to assist in path smoothing
         // nothing yet calculated, need to calc both grav and momentum from here, before turn executes
         points[0] = transform.position;
+        //TODO setting points[0] differently for teleporter...
         Vector2 tempPosition = currentPosition, tempPreviousPosition = previousPosition;
         Vector2 tempGrav = new Vector2(), tempMomentum = new Vector2();
 
@@ -596,16 +601,9 @@ public class Player : MonoBehaviour {
         }
         return new Vector3(0, 0, zPos + 20f);// something specifically not possible here
     }
-    private float findSmallestTriArea(Vector3 st, Vector3 h1, Vector3 h2, Vector3 end)
+    private Vector3 posRealignedToGrid(Vector3 givenPos)
     {
-        st.z = zPos; h1.z = zPos; h2.z = zPos; end.z = zPos;
-        //tri 1 is st, h1, and end; tri 2 is h1, h2, end
-        float s1 = (Vector3.Distance(st, h1) + Vector3.Distance(h1, h2) + Vector3.Distance(h2, st));
-        float s2 = (Vector3.Distance(h1, h2) + Vector3.Distance(h2, end) + Vector3.Distance(end, h1));
-        float area1 = Mathf.Sqrt(s1 * (s1 - Vector3.Distance(st, h1)) * (s1 - Vector3.Distance(h1, h2)) * (s1 - Vector3.Distance(h2, st)));
-        float area2 = Mathf.Sqrt(s2 * (s2 - Vector3.Distance(h1, h2)) * (s2 - Vector3.Distance(h2, end)) * (s2 - Vector3.Distance(end, h1)));
-        //Debug.Log(area1 + " vs " + area2 + "     Choosing: " + ((area1 >= area2) ? (area1) : (area2)));
-        Debug.Log("t1 area:length ratio = " + area1/s1 + "     t2 = " + area2/s2);
-        return (area1>=area2)?(area1):(area2);
+        return givenPos;
+        //return new Vector3(Mathf.Round(givenPos.x), Mathf.Round(givenPos.y), zPos);
     }
 }
