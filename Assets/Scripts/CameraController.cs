@@ -16,7 +16,7 @@ public class CameraController : MonoBehaviour {
 	}
 	
 	// Update is called once per frame
-	void Update () {
+	void FixedUpdate () {
         if (snapToFocus)// automatic averaging mode
         {
             transform.position = weighting * transform.position + (1 - weighting) * focus.transform.position;

@@ -187,8 +187,11 @@ public class Player : MonoBehaviour {
 
     bool thrusterOverdriveSelect()
     {
-        showFuturePath(numTurnsToPredictMovement, resultantIndicator, false);
-
+        if (Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).x - currentPosition.x) <= 2.1f && Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).y - currentPosition.y) <= 2.1f)
+        {
+            showFuturePath(numTurnsToPredictMovement, resultantIndicator, false);
+        }
+        
         if (Input.GetKeyDown(KeyCode.Mouse1))// cancel selection
         {
             thrusterOverdriveSelected = false;

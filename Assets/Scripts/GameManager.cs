@@ -23,6 +23,7 @@ public class GameManager : MonoBehaviour {
     public TileProperties[,] tiles;// local tile data
 
     // star vars
+    [Tooltip("x=range\ny=strength\nz=nxPos\nw=nyPos")]
     public Vector4[] starData = new Vector4[4];// local star data
     private StarProperties[] stars;// dont use this for anything, specific for grav calculations
 
@@ -105,6 +106,7 @@ public class GameManager : MonoBehaviour {
         selectedPlayer = 0;
         players[selectedPlayer].setCursorIsActive(true);
         players[selectedPlayer].updateGravAndMomentum();
+        mainCamera.transform.position = new Vector3(players[selectedPlayer].transform.position.x, players[selectedPlayer].transform.position.y, mainCamera.transform.position.z);// snap camera to player at start
         Debug.Log("It is now Player " + selectedPlayer + "'s turn!");
 
         // applying gravity to tiles
@@ -298,8 +300,8 @@ public class GameManager : MonoBehaviour {
             {
                 winningPlayer = playerIndex;
                 //TODO PLEASE CHANGE THIS SCENE TO ui or something
-                SceneManager.LoadScene(SceneManager.GetActiveScene().ToString());
                 Debug.Log("Player " + playerIndex + " wins!!!!!");
+                Application.Quit();
             }
             else
             {
