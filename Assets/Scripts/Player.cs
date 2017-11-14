@@ -16,18 +16,20 @@ public class Player : MonoBehaviour {
     public float zPos;// determines render layer of the players
     Vector2 gravity = new Vector2(), momentum = new Vector2(), movement = new Vector2(), currentPosition = new Vector3(), previousPosition = new Vector2(), teleportPosition = new Vector2();// positional things that make sense
     // a note on teleport position, it is the position from which you teleported, not to where you teleported.
+    public Sprite thrusterRange, teleporterRange;
     public Camera cam;
     public GameManager gameManager;
     public GameObject targetingReticulePrefab;
     public Sprite ship;
     public GameObject offsetShipImage;
-    private LineRenderer lineRen;
+    private LineRenderer lineRen, altLineRen;
     public Color reticuleColor, gravIndicator, momentumIndicator, movementIndicator, resultantIndicator;
     public int numTurnsToPredictMovement;
     public float smoothness;
 
     private TargetingReticuleController targetingReticule;
     private SpriteRenderer targetingReticuleSR;
+    private SpriteRenderer sr;
 
 
     private bool hasEndedTurn = false;
@@ -40,10 +42,12 @@ public class Player : MonoBehaviour {
         playerNum = playerCount;
 
         //Sprite Renderer and Line Renderer management
+        sr = GetComponent<SpriteRenderer>();
         lineRen = GetComponent<LineRenderer>();
         //creating a slightly offset ship image location, because messing with player position for visuals' sake seems like a bad idea
         GameObject shipSprite = Instantiate(offsetShipImage,new Vector3(transform.position.x + 0.0f, transform.position.y -0.0f, zPos), Quaternion.identity, this.transform);
         shipSprite.GetComponent<SpriteRenderer>().sprite = ship;
+        altLineRen = shipSprite.GetComponent<LineRenderer>();// can only have one line renderer per gameObject
         
         // managing own targeting reticule
         GameObject temp = Instantiate(targetingReticulePrefab);
@@ -189,7 +193,17 @@ public class Player : MonoBehaviour {
     {
         if (Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).x - currentPosition.x) <= 2.1f && Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).y - currentPosition.y) <= 2.1f)
         {
+            sr.enabled = false;
+            lineRen.enabled = true;
+            altLineRen.enabled = true;
             showFuturePath(numTurnsToPredictMovement, resultantIndicator, false);
+        }
+        else
+        {
+            lineRen.enabled = false;
+            altLineRen.enabled = false;
+            sr.sprite = thrusterRange;
+            sr.enabled = true;
         }
         
         if (Input.GetKeyDown(KeyCode.Mouse1))// cancel selection
@@ -413,17 +427,33 @@ public class Player : MonoBehaviour {
             tempPosition += (tempGrav + tempMomentum);
             points[i + 1] = new Vector3(tempPosition.x, tempPosition.y, zPos);// +1 so that it doesnt overwrite the special first entry, current position
         }
+        //if you want sprites every step the player will visit, place them at every non first entry in points right here, or cache path at this point
         points = smoothPath(points, 10);
-        drawPath(points, pathColor, new Color(1, 1, 1, 0));// 1,1,1,0 is white with fully transparant alpha
+        drawPath(points, pathColor);// actually managing the important main curvy path
+        //now seting up the precise jagged real path
+        //temp vars for one turn out calculation for helper line
+        Vector2 tempMousePosition = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
+        TileProperties temp = gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)];
+        Vector2 tempGravity = temp.gravityStrength * new Vector2(Mathf.Cos((int)temp.gravityDirection * 45f * Mathf.Deg2Rad), Mathf.Sin((int)temp.gravityDirection * 45f * Mathf.Deg2Rad));
+        tempGravity = (int)temp.gravityDirection % 2 == 1 ? Mathf.Sqrt(2) * tempGravity : tempGravity;
+        Vector2 tempMomentmn = currentPosition + movement - previousPosition;
+        //using above variables, calculates the points for the second line renderer to draw, specifically drawing grav from player to grav + momentum from player to grav + momentum + potential movement from player.
+        //Guaranteed to line up with final true path, therefore useful information for player
+        Vector3[] tempPositions = {new Vector3(currentPosition.x, currentPosition.y, zPos),
+            new Vector3(currentPosition.x + tempGravity.x, currentPosition.y + tempGravity.y, zPos),
+            new Vector3(currentPosition.x + tempGravity.x + tempMomentmn.x, currentPosition.y + tempGravity.y + tempMomentmn.y, zPos),
+            new Vector3(currentPosition.x + tempGravity.x + tempMomentmn.x + (tempMousePosition.x - currentPosition.x), currentPosition.y + tempGravity.y + tempMomentmn.y + (tempMousePosition.y - currentPosition.y), zPos)};
+        altLineRen.positionCount = tempPositions.Length;
+        altLineRen.SetPositions(tempPositions);
+        altLineRen.material.color = momentumIndicator;
 
     }
 
-    public void drawPath(Vector3[] points, Color start, Color end)
+    public void drawPath(Vector3[] points, Color newColor)
     {
         lineRen.positionCount = points.Length;
         lineRen.SetPositions(points);
-        lineRen.startColor = start;
-        lineRen.endColor = end;
+        lineRen.material.color = newColor;
     }
 
     public void resetTurnVars()
@@ -506,7 +536,7 @@ public class Player : MonoBehaviour {
         Vector3[] finalPath = new Vector3[(originalPath.Length - 2) * jumps + 1];// final output
         Vector3[] temp = new Vector3[originalPath.Length * 3 - 3];// helper structure. It gets big for good reason, all helper bezier curve directing things are inserted into this list
         //first entry in originalPath is current position, last entry is the extra position. No values from originalPath can not be present at equal interval in the final path, while this function is still correct
-        if (originalPath.Length <= 3)
+        if (originalPath.Length < 3)
         {
             // if there are not enough entries to create curves from, its a line or an invalid thing we were passed, so just return what was passed.
             return originalPath;
