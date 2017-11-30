@@ -245,6 +245,13 @@ public class GameManager : MonoBehaviour {
             chkpt.progress = new int[playersToCreate];
             ++chkptIndex;
         }
+        CameraController tempCam = mainCamera.GetComponent<CameraController>();
+        tempCam.rightMapLimit = MAP_LEN / 2f;
+        tempCam.leftMapLimit = MAP_LEN / -2f;
+        tempCam.upMapLimit = MAP_HGHT / 2f;
+        tempCam.downMapLimit = MAP_HGHT / -2f;
+
+        tileParent.SetActive(false);
     }
 
     // Update is called once per frame
@@ -293,20 +300,21 @@ public class GameManager : MonoBehaviour {
         // and then make other people who are in first, not in first
         // otherwise if they are not in first check to see if they should be in first now
         //updates progress and checks if done with this checkpoint
-        if(++ch.progress[playerIndex] == ch.turnsRequiredToRemain)
+        if(++ch.progress[playerIndex] >= ch.turnsRequiredToRemain)
         {
             ch.hasPassed[playerIndex] = true;
-            if(++players[playerIndex].numCheckpointsPassed == numCheckpointsRequiredToWin)
+            if(++players[playerIndex].numCheckpointsPassed >= numCheckpointsRequiredToWin)
             {
                 winningPlayer = playerIndex;
                 //TODO PLEASE CHANGE THIS SCENE TO ui or something
-                Debug.Log("Player " + playerIndex + " wins!!!!!");
+                Debug.Log("-----Player " + playerIndex + " wins!!!!!-----");
                 Application.Quit();
             }
             else
             {
                 if (players[playerIndex].isInFirst)
                 {
+                    Debug.Log("-----Player " + playerIndex + " is now in first!-----");
                     //make every other player not be in first anymore
                     for (int i = 0; i < playersToCreate; ++i)
                     {

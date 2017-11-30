@@ -32,8 +32,12 @@ public class Player : MonoBehaviour {
     private SpriteRenderer targetingReticuleSR;
     private SpriteRenderer sr;
 
+    private Vector3[] cachedSmoothPath = new Vector3[11];
+    private float timeWaited = 0.0f;//seconds, reset to 0 every turn
+    private float turnAnimationTime = 0.5f;//seconds, never is changed
 
-    private bool hasEndedTurn = false;
+
+    private bool hasEndedTurn = false, hasDecidedButNotEndedTurn = false;
     public bool isInFirst;// for checkpoint calculations and potentially end of game calculations
     public int numCheckpointsPassed = 0; // also for checkpoint calculations and end of game calcss 
     // Use this for initialization
@@ -66,18 +70,46 @@ public class Player : MonoBehaviour {
     }
 
     // Update is called once per frame
-    void Update() {
-        // render player
-        
-        // if its the player's turn still and more input is needed to advance
-        if (cursorIsActive && !hasEndedTurn && fuel > 0 && noMovementActionYetCompleted() && noCombatActionYetCompleted() && numTurnsStunned == 0)
+    void Update()
+    {
+        if (cursorIsActive)
         {
-            checkForInput();
-        }
-        // otherwise, verify that this player even was supposed to be taking a turn, and then immidiately end it
-        else if (cursorIsActive)
-        {
-            hasEndedTurn = true;
+            // render player
+            //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+            // if its the player's turn still and more input is needed to advance
+            if (!hasDecidedButNotEndedTurn && fuel > 0 && (noMovementActionYetCompleted() || (false && noCombatActionYetCompleted())) && numTurnsStunned == 0)
+            {
+                checkForInput();
+                timeWaited = 0.0f;
+            }
+            // otherwise move the player until they are at their final position for this turn, and then end the players turn
+            else{
+                //if this is true, the player was not eligible to move this turn due to being stunned or perhaps being out of fuel
+                if (numTurnsStunned != 0)
+                {
+                    //Debug.Log("currentPosition: " + currentPosition + "  previousPosition: " + previousPosition + "  momentum: " + momentum + "  teleportPosition: " + teleportPosition + "\nnumTurnsStunned!=0");
+                   // showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+                }
+                hasDecidedButNotEndedTurn = true;
+                if (timeWaited < turnAnimationTime)
+                {
+                    timeWaited += Time.deltaTime;
+                    if (timeWaited < turnAnimationTime)
+                    {
+                        //Debug.DrawRay(transform.position, cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime))], Color.red);
+                        //Debug.Log(timeWaited / turnAnimationTime + "% of the way done.");
+                        //Debug.Log("Trying to access cachedSmoothPath[" + ((int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1) + "]\nWhich has a Length value of " + cachedSmoothPath.Length);
+                        //transform.rotation = Quaternion.LookRotation(Vector3.RotateTowards(transform.forward, cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1], Mathf.PI * Time.deltaTime, 0.0f));
+                        //transform.rotation = new Quaternion(transform.rotation.x, transform.rotation.y, transform.rotation.z, 0.0f);
+                        int floor = (int)Mathf.Floor(timeWaited * cachedSmoothPath.Length / turnAnimationTime), ceil = (int)Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime);
+                        float actual = timeWaited * cachedSmoothPath.Length / turnAnimationTime;
+                        transform.position = Mathf.Abs((actual - ceil) / (floor - ceil)) * cachedSmoothPath[floor] + Mathf.Abs((actual - floor) / (floor - ceil)) * cachedSmoothPath[ceil - 1];
+                       // Debug.Log(previousPosition + " vs " + cachedSmoothPath[0] + " and " + currentPosition + " vs " + cachedSmoothPath[cachedSmoothPath.Length - 1]);
+                        return;
+                    }
+                }
+                hasEndedTurn = true;
+            }
         }
     }
 
@@ -148,7 +180,9 @@ public class Player : MonoBehaviour {
         }
         else if (Input.GetKeyDown(KeyCode.Space))
         {
-            hasEndedTurn = true;
+           // Debug.Log("currentPosition: " + currentPosition + "  previousPosition: " + previousPosition + "  momentum: " + momentum + "  teleportPosition: " + teleportPosition);
+            showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+            abstainSelected = true;
         }
     }
 
@@ -164,7 +198,7 @@ public class Player : MonoBehaviour {
         //if allowed, set the movement vector to the appropriate vector and then call updatePosition() to finalize movement this turn
         // if not, dont do anything and maybe display some sort of error message or sound?
 
-        showFuturePath(numTurnsToPredictMovement, resultantIndicator, false);
+        showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, false);
 
         if (Input.GetKeyDown(KeyCode.Mouse1))// cancel selection
         {
@@ -172,7 +206,7 @@ public class Player : MonoBehaviour {
             return false;
         }
 
-        if (Input.GetKeyDown(KeyCode.Mouse0))
+        if (/*Input.GetKeyDown(KeyCode.Mouse0)*/Input.GetKeyDown(KeyCode.W))
         {
             Vector2 temp = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
             Debug.Log("trying to execute thruster at selected tile: " + temp + " whose index values are: tiles[" + lenToIndex(temp.x) + "][" + heightToIndex(temp.y) + "]");
@@ -197,13 +231,14 @@ public class Player : MonoBehaviour {
             sr.enabled = false;
             lineRen.enabled = true;
             altLineRen.enabled = true;
-            showFuturePath(numTurnsToPredictMovement, resultantIndicator, false);
+            showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, false);
         }
         else
         {
             lineRen.enabled = false;
             altLineRen.enabled = false;
             sr.sprite = thrusterRange;
+            //sr.transform.rotation = new Quaternion();
             sr.enabled = true;
         }
         
@@ -238,13 +273,14 @@ public class Player : MonoBehaviour {
             sr.enabled = false;
             lineRen.enabled = true;
             altLineRen.enabled = true;
-            showFuturePath(numTurnsToPredictMovement, resultantIndicator, true);
+            showFuturePath(numTurnsToPredictMovement, resultantIndicator, true, false);
         }
         else
         {
             lineRen.enabled = false;
             altLineRen.enabled = false;
             sr.sprite = teleporterRange;
+            //sr.transform.rotation = new Quaternion();
             sr.enabled = true;
         }
         //showFuturePath(numTurnsToPredictMovement, resultantIndicator, true);
@@ -379,14 +415,14 @@ public class Player : MonoBehaviour {
 
 
         movement -= movement;//resetting movement vector for next turn
-        transform.position = posRealignedToGrid(new Vector3(currentPosition.x, currentPosition.y, zPos));
+        //transform.position = posRealignedToGrid(new Vector3(currentPosition.x, currentPosition.y, zPos));
         Debug.Log("Moving player to " + new Vector2(lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)));
     }
 
-    public void showFuturePath(int numTurns, Color pathColor, bool usingTeleporter)//numTurns is number of turns to project out, path color starts path that color, using teleporter just tells us if we need to calc momentum the first time or not
+    public void showFuturePath(int numTurns, Color pathColor, bool usingTeleporter, bool doingNothing)//numTurns is number of turns to project out, path color starts path that color, using teleporter just tells us if we need to calc momentum the first time or not
     {
         bool firstTurn = true;// here to just do something special for the first calc
-        if (usingTeleporter)
+        if (usingTeleporter && !doingNothing)
         {
             numTurns--;
         }
@@ -395,12 +431,12 @@ public class Player : MonoBehaviour {
         
        
         points[0] = transform.position;
-        if (usingTeleporter)
+        if (usingTeleporter && !doingNothing)
             points[0] = new Vector3(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).x, resolveToTile(Input.mousePosition.x, Input.mousePosition.y).y, zPos);
-        
+
         Vector2 tempPosition = currentPosition, tempPreviousPosition = previousPosition;
         Vector2 tempGrav = new Vector2(), tempMomentum = new Vector2();
-        if (usingTeleporter)
+        if (usingTeleporter && !doingNothing)
             tempPosition = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
 
         for (int i = 0; i < numTurns + 1; ++i) // (the +1 in the test is to generate one extra, not needed point, so that the smoothing calculations can have info from which to average)
@@ -440,6 +476,11 @@ public class Player : MonoBehaviour {
                     //tempPosition = ;
                     firstTurn = false;
                 }
+                else if (doingNothing)
+                {
+                    tempMomentum = tempPosition - tempPreviousPosition;
+                    firstTurn = false;
+                }
                 else
                 {
                     // use the current mouse position as the theoretical end point of this turn's movement
@@ -461,57 +502,64 @@ public class Player : MonoBehaviour {
         //if you want sprites every step the player will visit, place them at every non first entry in points right here, or cache path at this point
         points = smoothPath(points, 10);
         drawPath(points, pathColor);// actually managing the important main curvy path
-        //now seting up the precise jagged real path
-        if (!usingTeleporter)
+        //now seting up the precise jagged helper path
+        if (!doingNothing)
         {
-
-            //temp vars for one turn out calculation for helper line
-            bool isInMap = 0 <= lenToIndex(currentPosition.x) && lenToIndex(currentPosition.x) <= MAP_LEN - 1 && 0 <= heightToIndex(currentPosition.y) && heightToIndex(currentPosition.y) <= MAP_HGHT - 1;
-            Vector2 tempMousePosition = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
-            Vector2 tempGravity;
-            if (isInMap)
+            if (!usingTeleporter)
             {
-                TileProperties temp = gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)];
-                tempGravity = temp.gravityStrength * new Vector2(Mathf.Cos((int)temp.gravityDirection * 45f * Mathf.Deg2Rad), Mathf.Sin((int)temp.gravityDirection * 45f * Mathf.Deg2Rad));
-                tempGravity = (int)temp.gravityDirection % 2 == 1 ? Mathf.Sqrt(2) * tempGravity : tempGravity;
-            }else{
-                tempGravity = new Vector2();// there is no gravity off the map
-            }
-            Vector2 tempMomentmn = currentPosition + movement - previousPosition;
-            //using above variables, calculates the points for the second line renderer to draw, specifically drawing grav from player to grav + momentum from player to grav + momentum + potential movement from player.
-            //Guaranteed to line up with final true path, therefore useful information for player
-            Vector3[] tempPositions = {new Vector3(currentPosition.x, currentPosition.y, zPos),
+
+                //temp vars for one turn out calculation for helper line
+                bool isInMap = 0 <= lenToIndex(currentPosition.x) && lenToIndex(currentPosition.x) <= MAP_LEN - 1 && 0 <= heightToIndex(currentPosition.y) && heightToIndex(currentPosition.y) <= MAP_HGHT - 1;
+                Vector2 tempMousePosition = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
+                Vector2 tempGravity;
+                if (isInMap)
+                {
+                    TileProperties temp = gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)];
+                    tempGravity = temp.gravityStrength * new Vector2(Mathf.Cos((int)temp.gravityDirection * 45f * Mathf.Deg2Rad), Mathf.Sin((int)temp.gravityDirection * 45f * Mathf.Deg2Rad));
+                    tempGravity = (int)temp.gravityDirection % 2 == 1 ? Mathf.Sqrt(2) * tempGravity : tempGravity;
+                }
+                else
+                {
+                    tempGravity = new Vector2();// there is no gravity off the map
+                }
+                Vector2 tempMomentmn = currentPosition + movement - previousPosition;
+                //using above variables, calculates the points for the second line renderer to draw, specifically drawing grav from player to grav + momentum from player to grav + momentum + potential movement from player.
+                //Guaranteed to line up with final true path, therefore useful information for player
+                Vector3[] tempPositions = {new Vector3(currentPosition.x, currentPosition.y, zPos),
             new Vector3(currentPosition.x + tempGravity.x, currentPosition.y + tempGravity.y, zPos),
             new Vector3(currentPosition.x + tempGravity.x + tempMomentmn.x, currentPosition.y + tempGravity.y + tempMomentmn.y, zPos),
             new Vector3(currentPosition.x + tempGravity.x + tempMomentmn.x + (tempMousePosition.x - currentPosition.x), currentPosition.y + tempGravity.y + tempMomentmn.y + (tempMousePosition.y - currentPosition.y), zPos)};
-            altLineRen.positionCount = tempPositions.Length;
-            altLineRen.SetPositions(tempPositions);
-            altLineRen.material.color = momentumIndicator;
+                altLineRen.positionCount = tempPositions.Length;
+                altLineRen.SetPositions(tempPositions);
+                altLineRen.material.color = momentumIndicator;
 
-        }
-        else
-        {
-            //temp vars for one turn out calculation for helper line
-            Vector2 tempMousePosition = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
-            bool isInMap = 0 <= lenToIndex(tempMousePosition.x) && lenToIndex(tempMousePosition.x) <= MAP_LEN - 1 && 0 <= heightToIndex(tempMousePosition.y) && heightToIndex(tempMousePosition.y) <= MAP_HGHT - 1;
-            Vector2 tempGravity;
-            if (isInMap)
-            {
-                TileProperties temp = gameManager.tiles[lenToIndex(tempMousePosition.x), heightToIndex(tempMousePosition.y)];
-                tempGravity = temp.gravityStrength * new Vector2(Mathf.Cos((int)temp.gravityDirection * 45f * Mathf.Deg2Rad), Mathf.Sin((int)temp.gravityDirection * 45f * Mathf.Deg2Rad));
-                tempGravity = (int)temp.gravityDirection % 2 == 1 ? Mathf.Sqrt(2) * tempGravity : tempGravity;
-            }else{
-                tempGravity = new Vector2(); // again, no gravity off the map
             }
-            Vector2 tempMomentmn = currentPosition + movement - previousPosition;
-            //using above variables, calculates the points for the second line renderer to draw, specifically drawing grav from player to grav + momentum from player to grav + momentum + potential movement from player.
-            //Guaranteed to line up with final true path, therefore useful information for player
-            Vector3[] tempPositions = {new Vector3(tempMousePosition.x, tempMousePosition.y, zPos),
+            else
+            {
+                //temp vars for one turn out calculation for helper line
+                Vector2 tempMousePosition = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
+                bool isInMap = 0 <= lenToIndex(tempMousePosition.x) && lenToIndex(tempMousePosition.x) <= MAP_LEN - 1 && 0 <= heightToIndex(tempMousePosition.y) && heightToIndex(tempMousePosition.y) <= MAP_HGHT - 1;
+                Vector2 tempGravity;
+                if (isInMap)
+                {
+                    TileProperties temp = gameManager.tiles[lenToIndex(tempMousePosition.x), heightToIndex(tempMousePosition.y)];
+                    tempGravity = temp.gravityStrength * new Vector2(Mathf.Cos((int)temp.gravityDirection * 45f * Mathf.Deg2Rad), Mathf.Sin((int)temp.gravityDirection * 45f * Mathf.Deg2Rad));
+                    tempGravity = (int)temp.gravityDirection % 2 == 1 ? Mathf.Sqrt(2) * tempGravity : tempGravity;
+                }
+                else
+                {
+                    tempGravity = new Vector2(); // again, no gravity off the map
+                }
+                Vector2 tempMomentmn = currentPosition + movement - previousPosition;
+                //using above variables, calculates the points for the second line renderer to draw, specifically drawing grav from player to grav + momentum from player to grav + momentum + potential movement from player.
+                //Guaranteed to line up with final true path, therefore useful information for player
+                Vector3[] tempPositions = {new Vector3(tempMousePosition.x, tempMousePosition.y, zPos),
             new Vector3(tempMousePosition.x + tempGravity.x, tempMousePosition.y + tempGravity.y, zPos),
             new Vector3(tempMousePosition.x + tempGravity.x + tempMomentmn.x, tempMousePosition.y + tempGravity.y + tempMomentmn.y, zPos)};
-            altLineRen.positionCount = tempPositions.Length;
-            altLineRen.SetPositions(tempPositions);
-            altLineRen.material.color = gravIndicator;
+                altLineRen.positionCount = tempPositions.Length;
+                altLineRen.SetPositions(tempPositions);
+                altLineRen.material.color = gravIndicator;
+            }
         }
         
 
@@ -528,8 +576,10 @@ public class Player : MonoBehaviour {
     {
         cursorIsActive = false;
         hasEndedTurn = false;
+        hasDecidedButNotEndedTurn = false;
         thrusterSelected = false;
         thrusterOverdriveSelected = false;
+        abstainSelected = false;
         teleportSelected = false;
         miningLaserSelected = false;
         missileSelected = false;
@@ -677,6 +727,13 @@ public class Player : MonoBehaviour {
                 }
             }
         }
+        //saving one turn out path for animation purposes
+        cachedSmoothPath = new Vector3[jumps+1];
+        for (int i = 0; i < jumps+1; ++i)
+        {
+            cachedSmoothPath[i] = finalPath[i];
+        }
+        //returning final smooth path
         return finalPath;
     }
 
@@ -706,7 +763,7 @@ public class Player : MonoBehaviour {
     }
     private Vector3 posRealignedToGrid(Vector3 givenPos)
     {
-        return givenPos;
-        //return new Vector3(Mathf.Round(givenPos.x), Mathf.Round(givenPos.y), zPos);
+        //return givenPos;
+        return new Vector3(Mathf.Floor(givenPos.x) + 0.5f, Mathf.Floor(givenPos.y) + 0.5f, zPos);
     }
 }
