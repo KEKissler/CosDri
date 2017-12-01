@@ -35,8 +35,7 @@ public class Player : MonoBehaviour {
     private Vector3[] cachedSmoothPath = new Vector3[11];
     private float timeWaited = 0.0f;//seconds, reset to 0 every turn
     private float turnAnimationTime = 0.5f;//seconds, never is changed
-
-
+    private GameObject playerVisuals;
     private bool hasEndedTurn = false, hasDecidedButNotEndedTurn = false;
     public bool isInFirst;// for checkpoint calculations and potentially end of game calculations
     public int numCheckpointsPassed = 0; // also for checkpoint calculations and end of game calcss 
@@ -50,9 +49,9 @@ public class Player : MonoBehaviour {
         sr = GetComponent<SpriteRenderer>();
         lineRen = GetComponent<LineRenderer>();
         //creating a slightly offset ship image location, because messing with player position for visuals' sake seems like a bad idea
-        GameObject shipSprite = Instantiate(offsetShipImage,new Vector3(transform.position.x + 0.0f, transform.position.y -0.0f, zPos), Quaternion.identity, this.transform);
-        shipSprite.GetComponent<SpriteRenderer>().sprite = ship;
-        altLineRen = shipSprite.GetComponent<LineRenderer>();// can only have one line renderer per gameObject
+        playerVisuals = Instantiate(offsetShipImage,new Vector3(transform.position.x + 0.0f, transform.position.y -0.0f, zPos), Quaternion.identity, this.transform);
+        playerVisuals.GetComponent<SpriteRenderer>().sprite = ship;
+        altLineRen = playerVisuals.GetComponent<LineRenderer>();// can only have one line renderer per gameObject
         
         // managing own targeting reticule
         GameObject temp = Instantiate(targetingReticulePrefab);
@@ -99,8 +98,17 @@ public class Player : MonoBehaviour {
                         //Debug.DrawRay(transform.position, cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime))], Color.red);
                         //Debug.Log(timeWaited / turnAnimationTime + "% of the way done.");
                         //Debug.Log("Trying to access cachedSmoothPath[" + ((int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1) + "]\nWhich has a Length value of " + cachedSmoothPath.Length);
-                        //transform.rotation = Quaternion.LookRotation(Vector3.RotateTowards(transform.forward, cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1], Mathf.PI * Time.deltaTime, 0.0f));
-                        //transform.rotation = new Quaternion(transform.rotation.x, transform.rotation.y, transform.rotation.z, 0.0f);
+                        //transform.rotation = Quaternion.LookRotation(cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1] - transform.position);
+                        //Debug.Log("n a n i ? ? ? \n" + Mathf.Asin((cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1].y - transform.position.y) / (cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1].x - transform.position.x)));
+                        Vector3 nextPos = cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1];
+                        //Debug.Log(nextPos.ToString("F5") + "and " + transform.position.ToString("F5"));
+                        if (nextPos != transform.position && !Mathf.Approximately(Mathf.Abs(nextPos.x-transform.position.x),0f))
+                        {
+                            //Debug.Log((nextPos.y - transform.position.y) / (nextPos.x - transform.position.x));
+                            //Debug.Log(Mathf.Rad2Deg * Mathf.Atan(Mathf.Tan(Mathf.Deg2Rad * -300f)));
+                            //Debug.Log(Mathf.Rad2Deg * (Mathf.Atan2((nextPos.y - transform.position.y), (nextPos.x - transform.position.x)) + 1 / 2f * Mathf.PI));
+                            playerVisuals.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Rad2Deg * (Mathf.Atan2((nextPos.y - transform.position.y), (nextPos.x - transform.position.x)) - 1/2f * Mathf.PI));
+                        }
                         int floor = (int)Mathf.Floor(timeWaited * cachedSmoothPath.Length / turnAnimationTime), ceil = (int)Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime);
                         float actual = timeWaited * cachedSmoothPath.Length / turnAnimationTime;
                         transform.position = Mathf.Abs((actual - ceil) / (floor - ceil)) * cachedSmoothPath[floor] + Mathf.Abs((actual - floor) / (floor - ceil)) * cachedSmoothPath[ceil - 1];
