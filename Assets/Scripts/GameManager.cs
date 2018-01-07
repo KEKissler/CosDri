@@ -23,7 +23,7 @@ public class GameManager : MonoBehaviour {
     public TileProperties[,] tiles;// local tile data
 
     // star vars
-    [Tooltip("x=range\ny=strength\nz=nxPos\nw=nyPos")]
+    [Tooltip("x=range\ny=strength\nz=xPos\nw=yPos")]
     public Vector4[] starData = new Vector4[4];// local star data
     private StarProperties[] stars;// dont use this for anything, specific for grav calculations
 
@@ -59,6 +59,24 @@ public class GameManager : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
+        /*
+        RandomLevelGen kappa = new RandomLevelGen(500);
+        kappa.minHeight = 50;
+        kappa.maxHeight = 200;
+        kappa.minLen = 50;
+        kappa.maxLen = 200;
+        kappa.maxStarRange = 20;
+        kappa.minStarRange = 12;
+        kappa.maxStarStrength = 20;
+        kappa.minStarStrength = 8;
+        kappa.playersToCreate = 1;
+        kappa.starDensity = 1f / 1200;
+        kappa.genLevel();
+        MAP_LEN = kappa.len;
+        MAP_HGHT = kappa.height;
+        starData = kappa.stars;
+        */
+        //spawnLocations = kappa.spawnLocations;
         // tiles
         tiles = new TileProperties[MAP_LEN, MAP_HGHT];
         for (int i = 0; i < MAP_LEN; i++)
@@ -260,7 +278,7 @@ public class GameManager : MonoBehaviour {
         // if chosen player ends their turn, set the next player in line to have a turn and repeat
         if (players[selectedPlayer].GetHasEndedTurn())
         {
-            updateCheckpoints(selectedPlayer, false); // this function can make isGameOver() change its value
+            //updateCheckpoints(selectedPlayer, false); // this function can make isGameOver() change its value
             players[selectedPlayer].updateMomentum();//doesn't actually move the player
             players[selectedPlayer].resetTurnVars();// previous turn ends
 

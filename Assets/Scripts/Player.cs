@@ -86,8 +86,9 @@ public class Player : MonoBehaviour {
                 //if this is true, the player was not eligible to move this turn due to being stunned or perhaps being out of fuel
                 if (numTurnsStunned != 0)
                 {
+                    //abstainSelected = true;
                     //Debug.Log("currentPosition: " + currentPosition + "  previousPosition: " + previousPosition + "  momentum: " + momentum + "  teleportPosition: " + teleportPosition + "\nnumTurnsStunned!=0");
-                   // showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+                    //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
                 }
                 hasDecidedButNotEndedTurn = true;
                 if (timeWaited < turnAnimationTime)
