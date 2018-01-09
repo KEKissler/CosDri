@@ -32,7 +32,7 @@ public class Player : MonoBehaviour {
     private SpriteRenderer targetingReticuleSR;
     private SpriteRenderer sr;
 
-    private Vector3[] cachedSmoothPath = new Vector3[11];
+    public Vector3[] cachedSmoothPath = new Vector3[11];// Activator Line needs to know this information
     private float timeWaited = 0.0f;//seconds, reset to 0 every turn
     private float turnAnimationTime = 0.5f;//seconds, never is changed
     private GameObject playerVisuals;
@@ -425,7 +425,7 @@ public class Player : MonoBehaviour {
 
         movement -= movement;//resetting movement vector for next turn
         //transform.position = posRealignedToGrid(new Vector3(currentPosition.x, currentPosition.y, zPos));
-        Debug.Log("Moving player to " + new Vector2(lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)));
+        Debug.Log("Moving Player " + (playerNum-1) + " to " + new Vector2(lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)));
     }
 
     public void showFuturePath(int numTurns, Color pathColor, bool usingTeleporter, bool doingNothing)//numTurns is number of turns to project out, path color starts path that color, using teleporter just tells us if we need to calc momentum the first time or not

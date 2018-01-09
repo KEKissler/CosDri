@@ -12,20 +12,7 @@ public class ActivatorLine : MonoBehaviour {
     public Vector2 lineStart;
     public Vector2 lineEnd;
     private float slope;
-    private LineRenderer linRen;
-    
-    public void Start()
-    {
-        //Debug.Log(liesWithinLineSegment(new Vector2(-1,-1)/*point*/, new Vector2(0,0)/*lineSegStart*/, new Vector2(-2,-2)/*lineSegEnd*/));
-        linRen = this.GetComponent<LineRenderer>();
-        //test code
-        lineStart = new Vector2(0, 0);
-        lineEnd = new Vector2(1, 2);
-        
-        setLine(lineStart, lineEnd);
-        //test code
-        Debug.Log(intersects(new Vector2(1, 0), new Vector2(2, 2)));
-    }
+    public LineRenderer linRen;
 
     public void setLine(Vector2 first, Vector2 second)
     {
@@ -36,8 +23,41 @@ public class ActivatorLine : MonoBehaviour {
         slope = (lineStart.y != lineEnd.y)?((lineStart.x - lineEnd.x) / (lineStart.y - lineEnd.y)):float.MaxValue;
     }
 
+    public void activateMove(Player target)
+    {
+        for (int i = 0; i < 10; ++i)
+        {
+            if(intersects(target.cachedSmoothPath[i], target.cachedSmoothPath[i + 1])){
+                enactChange(target);
+                return;//only one change enacted per line per turn. Without this return, people could ride lines for at most 10 times normal amounts changed
+            }
+        }
+    }
+
+    public void enactChange(Player target)
+    {
+        if (type == LineType.Checkpoint)
+        {
+            ++target.numCheckpointsPassed;
+            Debug.Log("     Player " + (target.playerNum - 1) + " crossed a checkpoint.");
+        }
+        else if (type == LineType.Fuel)
+        {
+            target.fuel += modifier;
+            //if target fuel is below min or above max, set fuel to be within bounds again
+            target.fuel = (target.fuel > 0) ? (target.fuel > target.FUEL_LIMIT) ? target.FUEL_LIMIT : target.fuel : 0;
+            Debug.Log("     Added " + modifier + " fuel to Player " + (target.playerNum - 1) + "\n     making their total fuel: " + target.fuel);
+        }
+        else if (type == LineType.Stun)
+        {
+            //need one extra turn of stun only for players who are currently taking a turn
+            target.numTurnsStunned = (target.GetHasEndedTurn()) ? modifier : modifier + 1;
+            Debug.Log("     Stunned " + (target.playerNum - 1) + " for " + modifier + " (more) turns\nmaking them stunned for a total of " + target.numTurnsStunned + " turns from now.");
+        }
+    }
+
     //checks if given line segment between two parameter vector positions intersects the locally stored line info, defined in setLine call
-    public bool intersects(Vector2 first, Vector2 second)
+    public bool intersects(Vector3 first, Vector3 second)
     {
         float paramSlope = (first.y != second.y) ? ((first.x - second.x) / (first.y - second.y)) : float.MaxValue;
         if (slope == paramSlope) {
@@ -62,7 +82,6 @@ public class ActivatorLine : MonoBehaviour {
         }
         else if (slope == 0)//true infinity
         {
-            Debug.Log("a");
             if (first.y == second.y)
             {
                 //lines are perpendicular,
@@ -84,7 +103,6 @@ public class ActivatorLine : MonoBehaviour {
         }
         else if (/* "slope" == infinity */ lineStart.y == lineEnd.y)//true 0
         {
-            Debug.Log("b");
             if (paramSlope == 0)// slope of param is infinity
             {
                 //slope is 0
@@ -104,7 +122,6 @@ public class ActivatorLine : MonoBehaviour {
         }
         else if (paramSlope == 0)
         {
-            Debug.Log("c");
             if (lineStart.y == lineEnd.y)
             {
                 //lines are perpendicular,
@@ -123,7 +140,6 @@ public class ActivatorLine : MonoBehaviour {
         }
         else if (/*param slope == infinity*/first.y == second.y)
         {
-            Debug.Log("d");
             if (slope == 0)// slope of param is infinity
             {
                 //slope is 0
@@ -140,23 +156,21 @@ public class ActivatorLine : MonoBehaviour {
         }
         else
         {
-            Debug.Log("e");
             return liesWithinBothSegments(defaultIntersection(first, second), first, second);
         }
     }
 
     public bool liesWithinBothSegments(Vector2 proposedIntersection, Vector2 first, Vector2 second)
     {
-        //Debug.Log("proposedIntersection = " + proposedIntersection);
         return liesWithinLineSegment(proposedIntersection, lineStart, lineEnd) && liesWithinLineSegment(proposedIntersection, first, second);
     }
+
     public bool liesWithinLineSegment(Vector2 point, Vector2 first, Vector2 second)
     {
         //assumes point passed in already adheres to the line function defined by the two line points passed in
         //for the line eq defined by first and second, f(x) = -ax + c
         // tests point.y == f(point.x)
         float paramSlope = (first.y != second.y) ? ((first.x - second.x) / (first.y - second.y)) : float.MaxValue;
-        //Debug.Log("paramSlope = " + paramSlope);
         if (paramSlope == 0)
         {
             if (!Mathf.Approximately(point.x,first.x))
@@ -166,7 +180,6 @@ public class ActivatorLine : MonoBehaviour {
             //given line has slope 1/paramSlope which is infinity now, so just check that the y value lies within the valid segment range
             return ((first.y <= point.y && point.y <= second.y) || (first.y >= point.y && point.y >= second.y));
         }
-        //Debug.Log(point.y + " == " +       (point.x / paramSlope + (first.y - 1 / paramSlope * first.x)));
         if (!Mathf.Approximately(point.y, point.x / paramSlope + (first.y - 1 / paramSlope * first.x)))
         {
             return false;
@@ -190,7 +203,6 @@ public class ActivatorLine : MonoBehaviour {
             ((lineStart.y - 1 / slope * lineStart.x) / (-1 / slope + 1 / paramSlope) * (1 / paramSlope) + (first.y - 1 / paramSlope * first.x) / (-1 / slope + 1 / paramSlope) * (-1 / slope))
             );
         //check if intersection point lies within each line segment
-        Debug.Log("lines intersect at: " + intersectionPoint);
         return intersectionPoint;
     }
 }

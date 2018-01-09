@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+//TODO 1/7/2018 Add Start functionality to create activator lines from stuff already declared, Add Update functionality to check lists of lines (theoretical movement) against those activatorLines and to activate and do stuff if true intersection
 public class GameManager : MonoBehaviour {
     // prefabs
     public TileProperties tile;
     public StarProperties star;
     public Player player;
+    public GameObject checkpoint;
     public GameObject spaceBG;
     public GameObject starBG;
     public GameObject draw;
@@ -18,14 +20,26 @@ public class GameManager : MonoBehaviour {
     // tile vars
     [Header("Map Definitions")]
     public int MAP_LEN; public int MAP_HGHT; // direcly influences tiles to instantiate
-    [Tooltip("Checkpoints are the win condition of the game.\n\nAt least one is required, and those not explicitly active will be made active over the course of the game.")]
-    public Checkpoint[] checkpoints;
+    //ew, checkpoints, ew. Phasing those out as fast as possible thanks
+    //[Tooltip("Checkpoints are the win condition of the game.\n\nAt least one is required, and those not explicitly active will be made active over the course of the game.")]
+    //public Checkpoint[] checkpoints;
+    
     public TileProperties[,] tiles;// local tile data
 
     // star vars
     [Tooltip("x=range\ny=strength\nz=xPos\nw=yPos")]
     public Vector4[] starData = new Vector4[4];// local star data
     private StarProperties[] stars;// dont use this for anything, specific for grav calculations
+
+    //ActivatorLines vars
+    public Vector4[] ActivatorLinesToCreate;//data to create lines from (line from w,x to y,z)
+    private ActivatorLine[] ActivatorLines;// line list
+    public bool[] activeLines;// starts active if true, otherwise inactive
+    public ActivatorLine.LineType[] lineTypes;// identifies the behavior of the ActivatorLine
+    public int[] modifiers;// indicates, sometimes irrelevantly, the amount by which to enact an activated change (num turns to stun, amount of fuel to change, ...)
+    public Color inactive, active, cleared; // shared colors
+    public int numCheckpointsRequiredToWin;// the number of checkpoints any player must clear in order to win
+    private int winningPlayer = -1;// holds the index of the player that has won the game, -1 if no one has yet
 
     // player vars
     public int playersToCreate;// num characters in this game. 1-4 are valid entries
@@ -49,11 +63,7 @@ public class GameManager : MonoBehaviour {
     private GameObject spaceBGInstance;// will store an instance of the given prefab
     private GameObject starBGInstance;// also storing an instance of the given prefab
 
-    //checkpoint vars
-    public Color inactive, cleared; // shared colors
-    public Color[] specialColors;// holds three colors per checkpoint. For activating, active, and active and a border.
-    public int numCheckpointsRequiredToWin;// the number of checkpoints any player must clear in order to win
-    private int winningPlayer = -1;// holds the index of the player that has won the game, -1 if no one has yet
+    
     
     
 
@@ -217,52 +227,31 @@ public class GameManager : MonoBehaviour {
             starBGSR.size = new Vector2(1f, 1f);
         }
 
-        // checkpoint shading
-        int chkptIndex = 0;
-        foreach(Checkpoint chkpt in checkpoints)
+        //Activator Lines
+        ActivatorLines = new ActivatorLine[ActivatorLinesToCreate.Length];
+        for(int i = 0; i < ActivatorLinesToCreate.Length; ++i)
         {
-            int pointsIndex = 0;
-            SpriteRenderer[] tempSRList = new SpriteRenderer[chkpt.points.Length];
-            if (!chkpt.isActive)
+            Vector4 v = ActivatorLinesToCreate[i];
+            GameObject lineInstance = Instantiate(checkpoint, new Vector3((v.w + v.y) / 2 - MAP_LEN / 2, (v.x + v.z) / 2 - MAP_HGHT / 2, zPosition - 1), Quaternion.identity, checkpointParent.transform);
+            ActivatorLine ALRef = lineInstance.GetComponent<ActivatorLine>();
+            ALRef.linRen = lineInstance.GetComponent<LineRenderer>();
+            ALRef.setLine(new Vector2(v.w - MAP_LEN/2, v.x - MAP_HGHT/2), new Vector2(v.y - MAP_LEN/2, v.z - MAP_HGHT/2));
+            if (activeLines[i])
             {
-                foreach (Vector2 pos in chkpt.points)
-                {
-                    GameObject temp = Instantiate(draw, new Vector3((pos.x + (1 - MAP_LEN) / 2f), (pos.y + (1 - MAP_HGHT) / 2f), -4.5f), Quaternion.identity, checkpointParent.transform);
-                    tempSRList[pointsIndex] = temp.GetComponent<SpriteRenderer>();
-                    tempSRList[pointsIndex].color = inactive;
-                    ++pointsIndex;
-                }
-            }else{
-                foreach (Vector2 pos in chkpt.points)
-                {
-                    // shared colors: inactive, cleared
-                    //custom colors: activating, active, active w/ border (in that order)
-                    //this is the start function, therefore only inactive, active, and active w/ border are possible
-                    GameObject temp = Instantiate(draw, new Vector3((pos.x + (1-MAP_LEN)/2f), (pos.y + (1 - MAP_HGHT) / 2f), -4.5f), Quaternion.identity, checkpointParent.transform);
-                    tempSRList[pointsIndex] = temp.GetComponent<SpriteRenderer>();
-                    tempSRList[pointsIndex].color = specialColors[3*chkptIndex+2];// border color
-                     // if there is a position bordering this tile that does not also belong to the checkpoint, change its color to be a border
-                    int borderCount = 0;
-                    foreach (Vector2 altPos in chkpt.points)
-                    {
-                        if ((pos-altPos).magnitude < 1.5f)
-                        {
-                            ++borderCount;
-                            if (borderCount == 8)
-                            {
-                                tempSRList[pointsIndex].color = specialColors[3*chkptIndex + 1];// active color w/o border
-                                ++pointsIndex;
-                                break;
-                            }
-                        }
-                    }
-                }
+                ALRef.linRen.startColor = active;
+                ALRef.linRen.endColor = active;
             }
-            chkpt.usefulList = tempSRList;
-            chkpt.hasPassed = new bool[playersToCreate];
-            chkpt.progress = new int[playersToCreate];
-            ++chkptIndex;
+            else
+            {
+                ALRef.linRen.startColor = inactive;
+                ALRef.linRen.endColor = inactive;
+            }
+            ALRef.type = lineTypes[i];
+            ALRef.modifier = modifiers[i];
+            ActivatorLines[i] = ALRef;
         }
+
+        //Camera
         CameraController tempCam = mainCamera.GetComponent<CameraController>();
         tempCam.rightMapLimit = MAP_LEN / 2f;
         tempCam.leftMapLimit = MAP_LEN / -2f;
@@ -279,6 +268,7 @@ public class GameManager : MonoBehaviour {
         if (players[selectedPlayer].GetHasEndedTurn())
         {
             //updateCheckpoints(selectedPlayer, false); // this function can make isGameOver() change its value
+            activateActivatorLines(players[selectedPlayer]);
             players[selectedPlayer].updateMomentum();//doesn't actually move the player
             players[selectedPlayer].resetTurnVars();// previous turn ends
 
@@ -300,136 +290,15 @@ public class GameManager : MonoBehaviour {
 
         }
     }
-    public void updateCheckpoints(int playerIndex, bool isInFirst)
+
+    public void activateActivatorLines(Player target)
     {
-        Checkpoint[] toUpdate = getCheckpointsAt(players[playerIndex].transform.position);
-        foreach (Checkpoint ch in toUpdate)
+        foreach (ActivatorLine al in ActivatorLines)
         {
-            updateCheckpoint(ch, playerIndex, isInFirst);
-        }
-
-    }
-
-    public void updateCheckpoint(Checkpoint ch, int playerIndex, bool isInFirst)
-    {
-        //updates the count of the progress for this checkpoint for this player
-        //if the updated count == min needed count to clear checkpoint then change this checkpoint to look cleared and check if the player is in first
-        //if this player is one of the players who are in first, and incremeting their clear count wouldnt win them the game, select a new checkpoint to make active
-        // and then make other people who are in first, not in first
-        // otherwise if they are not in first check to see if they should be in first now
-        //updates progress and checks if done with this checkpoint
-        if(++ch.progress[playerIndex] >= ch.turnsRequiredToRemain)
-        {
-            ch.hasPassed[playerIndex] = true;
-            if(++players[playerIndex].numCheckpointsPassed >= numCheckpointsRequiredToWin)
-            {
-                winningPlayer = playerIndex;
-                //TODO PLEASE CHANGE THIS SCENE TO ui or something
-                Debug.Log("-----Player " + playerIndex + " wins!!!!!-----");
-                Application.Quit();
-            }
-            else
-            {
-                if (players[playerIndex].isInFirst)
-                {
-                    Debug.Log("-----Player " + playerIndex + " is now in first!-----");
-                    //make every other player not be in first anymore
-                    for (int i = 0; i < playersToCreate; ++i)
-                    {
-                        players[i].isInFirst = false;
-                    }
-                    players[playerIndex].isInFirst = true;
-
-                    bool shouldMakeAnotherCheckpointActive = true;
-                    List<Checkpoint> viable = new List<Checkpoint>();
-                    foreach (Checkpoint _ch in checkpoints)
-                    {
-                        if (!_ch.hasPassed[playerIndex] && ch.isActive)
-                        {
-                            shouldMakeAnotherCheckpointActive = false;
-                            viable.Add(_ch);
-                        }
-                    }
-                    if (shouldMakeAnotherCheckpointActive)
-                    {
-                        chooseCheckpointToMakeActive(viable.ToArray(), playerIndex);
-                    }
-
-                }
-                else
-                {
-                    //check if tied with other people in first, and if so make this player be in first too
-                    int maxCheckPointsPassed = 0;
-                    for (int i = 0; i < playersToCreate; ++i)
-                    {
-                        if (players[i].numCheckpointsPassed > maxCheckPointsPassed)
-                        {
-                            maxCheckPointsPassed = players[i].numCheckpointsPassed;
-                        }
-                    }
-                    if (players[playerIndex].numCheckpointsPassed == maxCheckPointsPassed)
-                    {
-                        players[playerIndex].isInFirst = true;
-                    }
-                }
-            }
+            al.activateMove(target);
         }
     }
 
-    void chooseCheckpointToMakeActive(Checkpoint[] options, int firstPlacePlayerIndex)
-    {
-        makeActive(options[(int)(Random.value * options.Length)], 0);
-    }
-
-    void makeActive(Checkpoint ch, int inNumTurns)
-    {
-        int checkpointIndex = -1;
-        for (int i = 0; i < checkpoints.Length; ++i)
-        {
-            if (ch == checkpoints[i])
-            {
-                checkpointIndex = i;
-                break;
-            }
-        }
-
-        foreach (SpriteRenderer tempSR in ch.usefulList)
-        {
-            int neighborCount = 0;
-            foreach (SpriteRenderer moreTempSR in ch.usefulList)
-            {
-                if ((tempSR.transform.position - moreTempSR.transform.position).magnitude < 1.5f)
-                {
-                    ++neighborCount;
-                }
-            }
-            if (neighborCount == 8)
-            {
-                tempSR.color = specialColors[checkpointIndex+1];
-            }
-            else
-            {
-                tempSR.color = specialColors[checkpointIndex+2];
-            }
-        }
-    }
-
-    Checkpoint[] getCheckpointsAt(Vector2 pos)
-    {
-        List<Checkpoint> growingList = new List<Checkpoint>();
-        foreach (Checkpoint ch in checkpoints)
-        {
-            foreach(Vector2 v in ch.points)
-            {
-                if (new Vector2(v.x + (1 - MAP_LEN) / 2f, v.y + (1 - MAP_HGHT) / 2f) == pos)
-                {
-                    growingList.Add(ch);
-                    break;
-                }
-            }
-        }
-        return growingList.ToArray();
-    }
     public bool isGameOver()
     {
         return winningPlayer > 0;
