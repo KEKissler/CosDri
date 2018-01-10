@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine;
 
 public class Player : MonoBehaviour {
@@ -10,7 +11,7 @@ public class Player : MonoBehaviour {
     public int FUEL_LIMIT;// plz dont change this value, max fuel allowed
     public int MAP_LEN, MAP_HGHT;// just for initialization purposes, this allows this player to adjust their own offset correctly
     private bool cursorIsActive = false;// for allowing or disallowing this player's  ability to select tiles. Set by the gameManager to start a player's turn
-    private bool thrusterSelected = false, thrusterOverdriveSelected = false, teleportSelected = false, abstainSelected = false; // which movement skill has this players selected
+    private bool thrusterOverdriveSelected = false, teleportSelected = false, abstainSelected = false; // which movement skill has this players selected
     private bool miningLaserSelected = false, missileSelected = false, piercingMissileSelected = false;// which of the combat abilities has this player selected
     public int playerNum;// assigned a value in Start()
     public int numTurnsStunned = 0;// if set to a value greater than 1, removes turn and decrements this number until it is 0
@@ -38,7 +39,7 @@ public class Player : MonoBehaviour {
     private GameObject playerVisuals;
     private bool hasEndedTurn = false, hasDecidedButNotEndedTurn = false;
     public bool isInFirst;// for checkpoint calculations and potentially end of game calculations
-    public int numCheckpointsPassed = 0; // also for checkpoint calculations and end of game calcss 
+    public int numCheckpointsPassed = 0; // also for checkpoint calculations and end of game calcs
     // Use this for initialization
     void Start() {
         // player count
@@ -76,14 +77,16 @@ public class Player : MonoBehaviour {
             // render player
             //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
             // if its the player's turn still and more input is needed to advance
-            if (!hasDecidedButNotEndedTurn && fuel > 0 && (noMovementActionYetCompleted() || (false && noCombatActionYetCompleted())) && numTurnsStunned == 0)
+            if (!hasDecidedButNotEndedTurn /*&& fuel > 0*/ && noMovementActionYetCompleted() && numTurnsStunned == 0)
             {
+                if(!teleportSelected && !thrusterOverdriveSelected)//absolutely required as you can reinterpret commands on the fly otherwise
                 checkForInput();
                 timeWaited = 0.0f;
             }
             // otherwise move the player until they are at their final position for this turn, and then end the players turn
             else{
                 //if this is true, the player was not eligible to move this turn due to being stunned or perhaps being out of fuel
+                //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
                 if (numTurnsStunned != 0)
                 {
                     //abstainSelected = true;
@@ -124,11 +127,7 @@ public class Player : MonoBehaviour {
 
     bool noMovementActionYetCompleted()
     {
-        if (thrusterSelected && thrusterSelect())// if player wants to use the thruster and if the thruster successfully activates
-        {
-            return false;//exit the function and keep checking for input
-        }
-        else if (thrusterOverdriveSelected && thrusterOverdriveSelect())// if player wants to use overdrive and if overdrive successfully activates
+        if (thrusterOverdriveSelected && thrusterOverdriveSelect())// if player wants to use overdrive and if overdrive successfully activates
         {
             return false;
         }
@@ -172,17 +171,12 @@ public class Player : MonoBehaviour {
 
     void checkForInput()
     {
-        if (Input.GetKeyDown(KeyCode.Q))
-        {
-            thrusterSelected = true;
-            targetingReticule.setColor(Color.gray);
-        }
-        else if (Input.GetKeyDown(KeyCode.W))
+        if (Input.GetKeyDown(KeyCode.W) && fuel > 0)
         {
             thrusterOverdriveSelected = true;
             targetingReticule.setColor(Color.gray);
         }
-        else if (Input.GetKeyDown(KeyCode.E))
+        else if (Input.GetKeyDown(KeyCode.E) && fuel > 1)
         {
             teleportSelected = true;
             targetingReticule.setColor(Color.gray);
@@ -192,6 +186,9 @@ public class Player : MonoBehaviour {
            // Debug.Log("currentPosition: " + currentPosition + "  previousPosition: " + previousPosition + "  momentum: " + momentum + "  teleportPosition: " + teleportPosition);
             showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
             abstainSelected = true;
+        }else if (Input.GetKeyDown(KeyCode.P))
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
     }
 
@@ -201,38 +198,6 @@ public class Player : MonoBehaviour {
         return new Vector2((Mathf.Floor(cursorWorldPosition.x) + 1 / 2f), (Mathf.Floor(cursorWorldPosition.y) + 1 / 2f));
     }
     // for this and all other actions, the bool returned represents whether or not the action has been executed yet or not. true if finished, false if not.
-    bool thrusterSelect()
-    {
-        // if left click, resolve cursor position to nearest tile, and then check if that tile is valid, for the fuel and position of this player.
-        //if allowed, set the movement vector to the appropriate vector and then call updatePosition() to finalize movement this turn
-        // if not, dont do anything and maybe display some sort of error message or sound?
-
-        showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, false);
-
-        if (Input.GetKeyDown(KeyCode.Mouse1))// cancel selection
-        {
-            thrusterSelected = false;
-            return false;
-        }
-
-        if (/*Input.GetKeyDown(KeyCode.Mouse0)*/Input.GetKeyDown(KeyCode.W))
-        {
-            Vector2 temp = resolveToTile(Input.mousePosition.x, Input.mousePosition.y);
-            Debug.Log("trying to execute thruster at selected tile: " + temp + " whose index values are: tiles[" + lenToIndex(temp.x) + "][" + heightToIndex(temp.y) + "]");
-            // if a tile on the map is selected
-            if (0 <= lenToIndex(temp.x) && lenToIndex(temp.x) <= MAP_LEN - 1 && 0 <= heightToIndex(temp.y) && heightToIndex(temp.y) <= MAP_HGHT - 1)
-            {
-                if (/*within 1 tile of the player position in x and y*/ (Mathf.Abs(lenToIndex(temp.x) - lenToIndex(currentPosition.x)) <= 1f) && (Mathf.Abs(lenToIndex(temp.y) - lenToIndex(currentPosition.y)) <= 1f))
-                {
-                    movement = temp - currentPosition;
-                    thrusterSelected = false;
-                    return true;// ran thing, action ended.
-                }
-            }
-        }
-        return false;
-    }
-
     bool thrusterOverdriveSelect()
     {
         if (Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).x - currentPosition.x) <= 2.1f && Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).y - currentPosition.y) <= 2.1f)
@@ -266,6 +231,7 @@ public class Player : MonoBehaviour {
             {
                 if (/*within 2 tiles of the player position in x and y*/ (Mathf.Abs(lenToIndex(temp.x) - lenToIndex(currentPosition.x)) <= 2f) && (Mathf.Abs(lenToIndex(temp.y) - lenToIndex(currentPosition.y)) <= 2f))
                 {
+                    fuel -= 1;
                     movement = temp - currentPosition;
                     thrusterOverdriveSelected = false;
                     return true;// ran thing, action ended.
@@ -310,6 +276,7 @@ public class Player : MonoBehaviour {
                 if (/*within 5 tile of the player position in x and y*/ (Mathf.Abs(lenToIndex(temp.x) - lenToIndex(currentPosition.x)) <= 5f) && (Mathf.Abs(lenToIndex(temp.y) - lenToIndex(currentPosition.y)) <= 5f))
                 {
                     //movement = temp - currentPosition;
+                    fuel -= 2;
                     movement = new Vector2();
                     teleportPosition = currentPosition;
                     currentPosition = temp;
@@ -348,7 +315,7 @@ public class Player : MonoBehaviour {
         Debug.Log("trying to access the gravity at [" + lenToIndex(currentPosition.x) + "][" + heightToIndex(currentPosition.y) + "]");
         if (0 <= lenToIndex(currentPosition.x) && lenToIndex(currentPosition.x) <= MAP_LEN - 1 && 0 <= heightToIndex(currentPosition.y) && heightToIndex(currentPosition.y) <= MAP_HGHT - 1 && gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)].gravityDirection != TileProperties.GravDir.none)
         {
-            Debug.Log("It has direction " + gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)].gravityDirection + " and strength " + gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)].gravityStrength);
+            //Debug.Log("It has direction " + gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)].gravityDirection + " and strength " + gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)].gravityStrength);
             if (gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)].gravityDirection == TileProperties.GravDir.right)
             {
                 gravity = gameManager.tiles[lenToIndex(currentPosition.x), heightToIndex(currentPosition.y)].gravityStrength * new Vector2(1, 0).normalized;
@@ -494,6 +461,7 @@ public class Player : MonoBehaviour {
                 {
                     // use the current mouse position as the theoretical end point of this turn's movement
                     tempMomentum = resolveToTile(Input.mousePosition.x, Input.mousePosition.y) - tempPreviousPosition;
+                   // Debug.Log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" + tempMomentum + " = " + Input.mousePosition.x + " + " + Input.mousePosition.y + " - " + tempPreviousPosition);
                     firstTurn = false;
 
                 }
@@ -586,7 +554,6 @@ public class Player : MonoBehaviour {
         cursorIsActive = false;
         hasEndedTurn = false;
         hasDecidedButNotEndedTurn = false;
-        thrusterSelected = false;
         thrusterOverdriveSelected = false;
         abstainSelected = false;
         teleportSelected = false;

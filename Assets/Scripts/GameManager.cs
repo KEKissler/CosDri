@@ -34,12 +34,13 @@ public class GameManager : MonoBehaviour {
     //ActivatorLines vars
     public Vector4[] ActivatorLinesToCreate;//data to create lines from (line from w,x to y,z)
     private ActivatorLine[] ActivatorLines;// line list
-    public bool[] activeLines;// starts active if true, otherwise inactive
+    //public bool[] activeLines;// starts active if true, otherwise inactive
     public ActivatorLine.LineType[] lineTypes;// identifies the behavior of the ActivatorLine
     public int[] modifiers;// indicates, sometimes irrelevantly, the amount by which to enact an activated change (num turns to stun, amount of fuel to change, ...)
-    public Color inactive, active, cleared; // shared colors
+    //public Color inactive, active, cleared; // shared colors
+    public Color CheckpointColor, FuelColor, StunColor; // shared colors
     public int numCheckpointsRequiredToWin;// the number of checkpoints any player must clear in order to win
-    private int winningPlayer = -1;// holds the index of the player that has won the game, -1 if no one has yet
+    private static int winningPlayer = -1;// holds the index of the player that has won the game, -1 if no one has yet
 
     // player vars
     public int playersToCreate;// num characters in this game. 1-4 are valid entries
@@ -236,18 +237,24 @@ public class GameManager : MonoBehaviour {
             ActivatorLine ALRef = lineInstance.GetComponent<ActivatorLine>();
             ALRef.linRen = lineInstance.GetComponent<LineRenderer>();
             ALRef.setLine(new Vector2(v.w - MAP_LEN/2, v.x - MAP_HGHT/2), new Vector2(v.y - MAP_LEN/2, v.z - MAP_HGHT/2));
-            if (activeLines[i])
-            {
-                ALRef.linRen.startColor = active;
-                ALRef.linRen.endColor = active;
-            }
-            else
-            {
-                ALRef.linRen.startColor = inactive;
-                ALRef.linRen.endColor = inactive;
-            }
             ALRef.type = lineTypes[i];
+            if ((int)(ALRef.type) == 0)
+            {
+                ALRef.linRen.startColor = FuelColor;
+                ALRef.linRen.endColor = FuelColor;
+            }
+            else if ((int)(ALRef.type) == 1)
+            {
+                ALRef.linRen.startColor = CheckpointColor;
+                ALRef.linRen.endColor = CheckpointColor;
+            }
+            else if ((int)(ALRef.type) == 2)
+            {
+                ALRef.linRen.startColor = StunColor;
+                ALRef.linRen.endColor = StunColor;
+            }
             ALRef.modifier = modifiers[i];
+            ALRef.numCheckpointsRequiredToWin = numCheckpointsRequiredToWin;
             ActivatorLines[i] = ALRef;
         }
 
@@ -267,6 +274,7 @@ public class GameManager : MonoBehaviour {
         // if chosen player ends their turn, set the next player in line to have a turn and repeat
         if (players[selectedPlayer].GetHasEndedTurn())
         {
+            Debug.Log(players[selectedPlayer].fuel + "\n");
             //updateCheckpoints(selectedPlayer, false); // this function can make isGameOver() change its value
             activateActivatorLines(players[selectedPlayer]);
             players[selectedPlayer].updateMomentum();//doesn't actually move the player
@@ -302,6 +310,11 @@ public class GameManager : MonoBehaviour {
     public bool isGameOver()
     {
         return winningPlayer > 0;
+    }
+
+    public static void setWinningPlayer(int playerNum)
+    {
+        winningPlayer = playerNum;
     }
 
     public int getMapLen()

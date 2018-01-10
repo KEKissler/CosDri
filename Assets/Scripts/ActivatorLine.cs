@@ -8,11 +8,12 @@ public class ActivatorLine : MonoBehaviour {
     public LineType type;
     public int modifier;
     public float zPos;
-    public Vector2 offset;
     public Vector2 lineStart;
     public Vector2 lineEnd;
     private float slope;
     public LineRenderer linRen;
+    public int numCheckpointsRequiredToWin; //This is only here because it was easy to do. The function enactChange has the potential to check for the win
+                                            //condition of the entire game. To do that this number is absolutely necessary.
 
     public void setLine(Vector2 first, Vector2 second)
     {
@@ -25,9 +26,12 @@ public class ActivatorLine : MonoBehaviour {
 
     public void activateMove(Player target)
     {
+        
         for (int i = 0; i < 10; ++i)
         {
-            if(intersects(target.cachedSmoothPath[i], target.cachedSmoothPath[i + 1])){
+            //Debug.Log(target.cachedSmoothPath[i] + " to " + target.cachedSmoothPath[i + 1] + " = " + intersects(target.cachedSmoothPath[i], target.cachedSmoothPath[i + 1]) + "\nvs " + lineStart + " to " + lineEnd + " with slope " + slope);
+
+            if (intersects(target.cachedSmoothPath[i], target.cachedSmoothPath[i + 1])){
                 enactChange(target);
                 return;//only one change enacted per line per turn. Without this return, people could ride lines for at most 10 times normal amounts changed
             }
@@ -38,8 +42,17 @@ public class ActivatorLine : MonoBehaviour {
     {
         if (type == LineType.Checkpoint)
         {
-            ++target.numCheckpointsPassed;
+            //remove checkpoint, because it was crossed
+            //Destroy(this.gameObject);
+            linRen.enabled = false;
             Debug.Log("     Player " + (target.playerNum - 1) + " crossed a checkpoint.");
+            if (++target.numCheckpointsPassed >= numCheckpointsRequiredToWin)
+            {
+                GameManager.setWinningPlayer(target.playerNum);
+                Debug.Log("\n");
+                Debug.Log("Player " + (target.playerNum - 1) + " wins the game!\n");
+                Debug.Log("\n");
+            }
         }
         else if (type == LineType.Fuel)
         {
@@ -60,10 +73,10 @@ public class ActivatorLine : MonoBehaviour {
     public bool intersects(Vector3 first, Vector3 second)
     {
         float paramSlope = (first.y != second.y) ? ((first.x - second.x) / (first.y - second.y)) : float.MaxValue;
-        if (slope == paramSlope) {
+        if (Mathf.Approximately(slope, paramSlope)) {
             //first check they represent the same line by a0a1c0c1 calcs
             //ret false if they differ
-            if ((lineStart.y - 1 / slope * lineStart.x) != (first.y - 1 / paramSlope * first.x))
+            if (!Mathf.Approximately((lineStart.y - 1 / slope * lineStart.x),(first.y - 1 / paramSlope * first.x)))
             {
                 Debug.Log("no intersection needed, line segments parallel but not same lines");
                 return false;
@@ -80,9 +93,9 @@ public class ActivatorLine : MonoBehaviour {
             //TODO
             //return liesWithinBothSegments(new Vector2(), first, second);
         }
-        else if (slope == 0)//true infinity
+        else if (Mathf.Approximately(slope,0))//true infinity
         {
-            if (first.y == second.y)
+            if (Mathf.Approximately(first.y, second.y))
             {
                 //lines are perpendicular,
                 //slope = infinity
@@ -101,9 +114,9 @@ public class ActivatorLine : MonoBehaviour {
             //solve param line for x = lineStart.x
             //return liesWithinBothSegments(new Vector2(), first, second);
         }
-        else if (/* "slope" == infinity */ lineStart.y == lineEnd.y)//true 0
+        else if (/* "slope" == infinity */ Mathf.Approximately(lineStart.y, lineEnd.y))//true 0
         {
-            if (paramSlope == 0)// slope of param is infinity
+            if (Mathf.Approximately(paramSlope, 0))// slope of param is infinity
             {
                 //slope is 0
                 //param slope is infinity
@@ -120,9 +133,9 @@ public class ActivatorLine : MonoBehaviour {
             //solve param line for y = lineStart.y
             //return liesWithinBothSegments(new Vector2(), first, second);
         }
-        else if (paramSlope == 0)
+        else if (Mathf.Approximately(paramSlope, 0))
         {
-            if (lineStart.y == lineEnd.y)
+            if (Mathf.Approximately(lineStart.y, lineEnd.y))
             {
                 //lines are perpendicular,
                 //slope = infinity
@@ -138,9 +151,9 @@ public class ActivatorLine : MonoBehaviour {
                 return liesWithinBothSegments(new Vector2(first.x, first.x / slope + (lineStart.y - 1 / slope * lineStart.x)), first, second);
             }
         }
-        else if (/*param slope == infinity*/first.y == second.y)
+        else if (/*param slope == infinity*/Mathf.Approximately(first.y, second.y))
         {
-            if (slope == 0)// slope of param is infinity
+            if (Mathf.Approximately(slope, 0))// slope of param is infinity
             {
                 //slope is 0
                 //param slope is infinity
@@ -156,6 +169,7 @@ public class ActivatorLine : MonoBehaviour {
         }
         else
         {
+            //Debug.Log("\ne");
             return liesWithinBothSegments(defaultIntersection(first, second), first, second);
         }
     }
@@ -203,6 +217,7 @@ public class ActivatorLine : MonoBehaviour {
             ((lineStart.y - 1 / slope * lineStart.x) / (-1 / slope + 1 / paramSlope) * (1 / paramSlope) + (first.y - 1 / paramSlope * first.x) / (-1 / slope + 1 / paramSlope) * (-1 / slope))
             );
         //check if intersection point lies within each line segment
+        //Debug.Log("PropsedDefaultIntersection at " + intersectionPoint + "\ne");
         return intersectionPoint;
     }
 }
