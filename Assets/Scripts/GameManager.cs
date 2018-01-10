@@ -13,9 +13,10 @@ public class GameManager : MonoBehaviour {
     public GameObject spaceBG;
     public GameObject starBG;
     public GameObject draw;
+    public GameObject marble;
 
     // empty objects in scene view for neat nesting thing. Helps in unity editor.
-    public GameObject tileParent, starParent, playerParent, BackgroundParent, spaceParallaxParent, starParallaxParent, checkpointParent;
+    public GameObject tileParent, starParent, playerParent, BackgroundParent, spaceParallaxParent, starParallaxParent, checkpointParent, marbleParent;
 
     // tile vars
     [Header("Map Definitions")]
@@ -103,7 +104,8 @@ public class GameManager : MonoBehaviour {
         stars = new StarProperties[starData.Length];
         for (int k = 0; k < starData.Length; k++)
         {
-            stars[k] = Instantiate(star, new Vector3(starData[k].z-MAP_LEN/2f,starData[k].w-MAP_HGHT/2f,0f), Quaternion.identity, starParent.transform);
+            stars[k] = Instantiate(star, new Vector3(starData[k].z - MAP_LEN / 2f, starData[k].w - MAP_HGHT / 2f, 0f), Quaternion.identity, starParent.transform);
+            Instantiate(marble, new Vector3(starData[k].z - MAP_LEN / 2f, starData[k].w - MAP_HGHT / 2f, -4f), Quaternion.identity, marbleParent.transform).transform.localScale = starData[k].x/4f * new Vector3(1f, 1f, 1f);
             stars[k].setRange(starData[k].x);
             stars[k].setStrength(starData[k].y);
         }
