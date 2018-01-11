@@ -24,7 +24,7 @@ public class ActivatorLine : MonoBehaviour {
         slope = (lineStart.y != lineEnd.y)?((lineStart.x - lineEnd.x) / (lineStart.y - lineEnd.y)):float.MaxValue;
     }
 
-    public void activateMove(Player target)
+    public bool activateMove(Player target)
     {
         
         for (int i = 0; i < 10; ++i)
@@ -32,27 +32,30 @@ public class ActivatorLine : MonoBehaviour {
             //Debug.Log(target.cachedSmoothPath[i] + " to " + target.cachedSmoothPath[i + 1] + " = " + intersects(target.cachedSmoothPath[i], target.cachedSmoothPath[i + 1]) + "\nvs " + lineStart + " to " + lineEnd + " with slope " + slope);
 
             if (intersects(target.cachedSmoothPath[i], target.cachedSmoothPath[i + 1])){
-                enactChange(target);
-                return;//only one change enacted per line per turn. Without this return, people could ride lines for at most 10 times normal amounts changed
+                return enactChange(target);//only one change enacted per line per turn. Without this return, people could ride lines for at most 10 times normal amounts changed
             }
         }
+        return false;
     }
 
-    public void enactChange(Player target)
+    public bool enactChange(Player target)
     {
         if (type == LineType.Checkpoint)
         {
             //remove checkpoint, because it was crossed
             //Destroy(this.gameObject);
-            linRen.enabled = false;
-            Debug.Log("     Player " + (target.playerNum - 1) + " crossed a checkpoint.");
-            if (++target.numCheckpointsPassed >= numCheckpointsRequiredToWin)
+
+            Debug.Log("     Player " + (target.playerNum - 1) + " crossed a checkpoint.\nIt was a " + ((linRen.enabled) ? "REAL" : "DISABLED") + " checkpoint.");
+            if (linRen.enabled && ++target.numCheckpointsPassed >= numCheckpointsRequiredToWin)
             {
+                linRen.enabled = false;//disable this activatorLine's visuals to make it not activate or render anymore
                 GameManager.setWinningPlayer(target.playerNum);
                 Debug.Log("\n");
                 Debug.Log("Player " + (target.playerNum - 1) + " wins the game!\n");
                 Debug.Log("\n");
+                return true;
             }
+            
         }
         else if (type == LineType.Fuel)
         {
@@ -67,6 +70,7 @@ public class ActivatorLine : MonoBehaviour {
             target.numTurnsStunned = (target.GetHasEndedTurn()) ? modifier : modifier + 1;
             Debug.Log("     Stunned " + (target.playerNum - 1) + " for " + modifier + " (more) turns\nmaking them stunned for a total of " + target.numTurnsStunned + " turns from now.");
         }
+        return false;
     }
 
     //checks if given line segment between two parameter vector positions intersects the locally stored line info, defined in setLine call

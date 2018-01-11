@@ -21,10 +21,6 @@ public class GameManager : MonoBehaviour {
     // tile vars
     [Header("Map Definitions")]
     public int MAP_LEN; public int MAP_HGHT; // direcly influences tiles to instantiate
-    //ew, checkpoints, ew. Phasing those out as fast as possible thanks
-    //[Tooltip("Checkpoints are the win condition of the game.\n\nAt least one is required, and those not explicitly active will be made active over the course of the game.")]
-    //public Checkpoint[] checkpoints;
-    
     public TileProperties[,] tiles;// local tile data
 
     // star vars
@@ -35,10 +31,8 @@ public class GameManager : MonoBehaviour {
     //ActivatorLines vars
     public Vector4[] ActivatorLinesToCreate;//data to create lines from (line from w,x to y,z)
     private ActivatorLine[] ActivatorLines;// line list
-    //public bool[] activeLines;// starts active if true, otherwise inactive
     public ActivatorLine.LineType[] lineTypes;// identifies the behavior of the ActivatorLine
     public int[] modifiers;// indicates, sometimes irrelevantly, the amount by which to enact an activated change (num turns to stun, amount of fuel to change, ...)
-    //public Color inactive, active, cleared; // shared colors
     public Color CheckpointColor, FuelColor, StunColor; // shared colors
     public int numCheckpointsRequiredToWin;// the number of checkpoints any player must clear in order to win
     private static int winningPlayer = -1;// holds the index of the player that has won the game, -1 if no one has yet
@@ -48,13 +42,15 @@ public class GameManager : MonoBehaviour {
     public int fuelSpawnAmount, maxFuelLimit; // default fuel setting specifications to pass along to player instances
     public Player[] players = new Player[4]; // a list to hold them locally
     public Vector2[] spawnLocations = new Vector2[4]; // a list of where to create the people
-    public Color[] playerColors = new Color[4];// targeting reticule color
+    public Color[] playerColors = new Color[4];// hueshift color for players
     public Color momentumIndicatorColor, gravityIndicatorColor, movementIndicatorColor, resultantIndicatorColor;// colors for helpful lines
     public Sprite[] playerSprites = new Sprite[4];// for ships, I guess. Will add more art vars here later as needed.
     public Camera mainCamera; // for giving to players so that they can all align their targeting reticules to the grid properly
     public GameObject targetingReticulePrefab; // for giving to each player
     private int selectedPlayer; // one player may have a turn at a time. selectedPlayer tracks that player.
     public float zPosition;// determines height to place player objects
+    private int totalNumTurns = 0;
+    private bool alreadyShownEndGameScreen = false;
 
     //background visual game vars
     public Sprite space;// scalable background image for space
@@ -105,7 +101,7 @@ public class GameManager : MonoBehaviour {
         for (int k = 0; k < starData.Length; k++)
         {
             stars[k] = Instantiate(star, new Vector3(starData[k].z - MAP_LEN / 2f, starData[k].w - MAP_HGHT / 2f, 0f), Quaternion.identity, starParent.transform);
-            Instantiate(marble, new Vector3(starData[k].z - MAP_LEN / 2f, starData[k].w - MAP_HGHT / 2f, -4f), Quaternion.identity, marbleParent.transform).transform.localScale = starData[k].x/4f * new Vector3(1f, 1f, 1f);
+            Instantiate(marble, new Vector3(starData[k].z - MAP_LEN / 2f, starData[k].w - MAP_HGHT / 2f, -4f), Quaternion.identity, marbleParent.transform).transform.localScale = starData[k].x/2.5f * new Vector3(1f, 1f, 1f);
             stars[k].setRange(starData[k].x);
             stars[k].setStrength(starData[k].y);
         }
@@ -211,7 +207,7 @@ public class GameManager : MonoBehaviour {
         {
             spaceBGSR.size = new Vector2(MAP_LEN / spaceScale.x, MAP_HGHT / spaceScale.y);
         }else{
-            Debug.Log("WARNING: space background scale provided too small, defaulting to sizes of 1.");
+            Debug.LogWarning("WARNING: space background scale provided too small, defaulting to sizes of 1.");
             spaceBGSR.size = new Vector2(1f, 1f);
         }
 
@@ -226,7 +222,7 @@ public class GameManager : MonoBehaviour {
         {
             starBGSR.size = new Vector2(MAP_LEN / starScale.x, MAP_HGHT / starScale.y);
         }else{
-            Debug.Log("WARNING: star background scale provided too small, defaulting to sizes of 1.");
+            Debug.LogWarning("WARNING: star background scale provided too small, defaulting to sizes of 1.");
             starBGSR.size = new Vector2(1f, 1f);
         }
 
@@ -267,6 +263,7 @@ public class GameManager : MonoBehaviour {
         tempCam.upMapLimit = MAP_HGHT / 2f;
         tempCam.downMapLimit = MAP_HGHT / -2f;
 
+        //disables visuals for each grav tile
         tileParent.SetActive(false);
     }
 
@@ -276,9 +273,14 @@ public class GameManager : MonoBehaviour {
         // if chosen player ends their turn, set the next player in line to have a turn and repeat
         if (players[selectedPlayer].GetHasEndedTurn())
         {
+            ++totalNumTurns;
             Debug.Log(players[selectedPlayer].fuel + "\n");
             //updateCheckpoints(selectedPlayer, false); // this function can make isGameOver() change its value
-            activateActivatorLines(players[selectedPlayer]);
+            if (activateActivatorLines(players[selectedPlayer]) && !alreadyShownEndGameScreen)
+            {
+                alreadyShownEndGameScreen = true;
+                //showEndGameScreen;
+            }
             players[selectedPlayer].updateMomentum();//doesn't actually move the player
             players[selectedPlayer].resetTurnVars();// previous turn ends
 
@@ -301,12 +303,21 @@ public class GameManager : MonoBehaviour {
         }
     }
 
-    public void activateActivatorLines(Player target)
+    public bool activateActivatorLines(Player target)
     {
+        bool toReturn = false;
         foreach (ActivatorLine al in ActivatorLines)
         {
-            al.activateMove(target);
+            if (!toReturn)
+            {
+                toReturn = al.activateMove(target);
+            }
+            else
+            {
+                al.activateMove(target);
+            }
         }
+        return toReturn;
     }
 
     public bool isGameOver()

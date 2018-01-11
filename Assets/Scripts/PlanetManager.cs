@@ -3,17 +3,18 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class PlanetManager : MonoBehaviour {
-    public bool selectColorsOnlyFromList;
+    public bool selectColorsOnlyFromList, useProvidedRotation;
     public Texture[] textures;
     public Color[] colors;
     private Material mat;
     private Texture selectedTex;
     private Color selectedColor;
     private Vector3 rotation;
+    public Vector3 rotToUse;
 
 	// Use this for initialization
 	void Start () {
-        rotation = new Vector3(Random.Range(0.0f, 0.0f), Random.Range(-5.0f, 5.0f), Random.Range(-3.0f, 1.0f));
+        rotation = (!useProvidedRotation)?new Vector3(Random.Range(-5.0f, 5.0f), Random.Range(-5.0f, 5.0f), 0f):rotToUse;
         mat =this.GetComponent<MeshRenderer>().material;
         if (selectColorsOnlyFromList)
         {
@@ -38,10 +39,10 @@ public class PlanetManager : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
         //Debug.Log(rotation);
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.I))
         {
             //mat = this.GetComponent<MeshRenderer>().material;
-            if (selectColorsOnlyFromList)
+            if (selectColorsOnlyFromList && colors.Length > 0)
             {
                 mat.SetColor("_Color", colors[Random.Range(0, colors.Length)]);
             }
@@ -51,9 +52,9 @@ public class PlanetManager : MonoBehaviour {
             }
             mat.SetTexture("_MainTex", textures[Random.Range(0, textures.Length)]);
         }
-        if (Input.GetKeyDown(KeyCode.R))
+        if (Input.GetKeyDown(KeyCode.O) && !useProvidedRotation)
         {
-            rotation = new Vector3(Random.Range(-1.0f, 3.0f), Random.Range(-5.0f, 5.0f), Random.Range(-3.0f, 1.0f));
+            rotation = new Vector3(Random.Range(-5.0f, 5.0f), Random.Range(-5.0f, 5.0f), 0f);
         }
 	}
 }
