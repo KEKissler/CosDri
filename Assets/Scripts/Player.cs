@@ -6,6 +6,10 @@ using UnityEngine;
 
 public class Player : MonoBehaviour {
 
+    public bool timedTurns;
+    public float timeLimit;
+    public float subTurnTime = 0;
+
     static int playerCount = 0;// a running total of all players in the game
     public int fuel = 0;// fuel meter for this character
     public int FUEL_LIMIT;// plz dont change this value, max fuel allowed
@@ -72,57 +76,122 @@ public class Player : MonoBehaviour {
     // Update is called once per frame
     void Update()
     {
-        if (cursorIsActive)
+        if (cursorIsActive /*given the go ahead from game manager*/ && timedTurns)
         {
-            // render player
-            //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
-            // if its the player's turn still and more input is needed to advance
-            if (!hasDecidedButNotEndedTurn /*&& fuel > 0*/ && noMovementActionYetCompleted() && numTurnsStunned == 0)
+            if (subTurnTime >= timeLimit)//turn is over, auto execute movement
             {
-                if(!teleportSelected && !thrusterOverdriveSelected)//absolutely required as you can reinterpret commands on the fly otherwise
-                checkForInput();
-                timeWaited = 0.0f;
-            }
-            // otherwise move the player until they are at their final position for this turn, and then end the players turn
-            else{
-                //if this is true, the player was not eligible to move this turn due to being stunned or perhaps being out of fuel
-                //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
-                if (numTurnsStunned != 0)
+                //resolve direction to move player and assign that to movement this turn
+                Vector2 temp = resolveToTile(Input.mousePosition.x, Input.mousePosition.y) - currentPosition;
+                //assign movement
+                movement = new Vector2();
+                if (temp.magnitude != 0f)
                 {
-                    //abstainSelected = true;
-                    //Debug.Log("currentPosition: " + currentPosition + "  previousPosition: " + previousPosition + "  momentum: " + momentum + "  teleportPosition: " + teleportPosition + "\nnumTurnsStunned!=0");
-                    //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+                    mess(temp);
                 }
-                hasDecidedButNotEndedTurn = true;
-                if (timeWaited < turnAnimationTime)
-                {
-                    timeWaited += Time.deltaTime;
-                    if (timeWaited < turnAnimationTime)
-                    {
-                        //Debug.DrawRay(transform.position, cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime))], Color.red);
-                        //Debug.Log(timeWaited / turnAnimationTime + "% of the way done.");
-                        //Debug.Log("Trying to access cachedSmoothPath[" + ((int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1) + "]\nWhich has a Length value of " + cachedSmoothPath.Length);
-                        //transform.rotation = Quaternion.LookRotation(cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1] - transform.position);
-                        //Debug.Log("n a n i ? ? ? \n" + Mathf.Asin((cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1].y - transform.position.y) / (cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1].x - transform.position.x)));
-                        Vector3 nextPos = cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1];
-                        //Debug.Log(nextPos.ToString("F5") + "and " + transform.position.ToString("F5"));
-                        if (nextPos != transform.position && !Mathf.Approximately(Mathf.Abs(nextPos.x-transform.position.x),0f))
-                        {
-                            //Debug.Log((nextPos.y - transform.position.y) / (nextPos.x - transform.position.x));
-                            //Debug.Log(Mathf.Rad2Deg * Mathf.Atan(Mathf.Tan(Mathf.Deg2Rad * -300f)));
-                            //Debug.Log(Mathf.Rad2Deg * (Mathf.Atan2((nextPos.y - transform.position.y), (nextPos.x - transform.position.x)) + 1 / 2f * Mathf.PI));
-                            playerVisuals.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Rad2Deg * (Mathf.Atan2((nextPos.y - transform.position.y), (nextPos.x - transform.position.x)) - 1/2f * Mathf.PI));
-                        }
-                        int floor = (int)Mathf.Floor(timeWaited * cachedSmoothPath.Length / turnAnimationTime), ceil = (int)Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime);
-                        float actual = timeWaited * cachedSmoothPath.Length / turnAnimationTime;
-                        transform.position = Mathf.Abs((actual - ceil) / (floor - ceil)) * cachedSmoothPath[floor] + Mathf.Abs((actual - floor) / (floor - ceil)) * cachedSmoothPath[ceil - 1];
-                       // Debug.Log(previousPosition + " vs " + cachedSmoothPath[0] + " and " + currentPosition + " vs " + cachedSmoothPath[cachedSmoothPath.Length - 1]);
-                        return;
-                    }
-                }
+
+                //reset subTurnTime
+                subTurnTime = 0;
+                //pass control back to gameManager
                 hasEndedTurn = true;
             }
+            else
+            {
+                subTurnTime += Time.deltaTime;
+            }
         }
+        else
+        {
+            if (cursorIsActive)
+            {
+                // render player
+                //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+                // if its the player's turn still and more input is needed to advance
+                if (!hasDecidedButNotEndedTurn /*&& fuel > 0*/ && noMovementActionYetCompleted() && numTurnsStunned == 0)
+                {
+                    if (!teleportSelected && !thrusterOverdriveSelected)//absolutely required as you can reinterpret commands on the fly otherwise
+                        checkForInput();
+                    timeWaited = 0.0f;
+                }
+                // otherwise move the player until they are at their final position for this turn, and then end the players turn
+                else
+                {
+                    //if this is true, the player was not eligible to move this turn due to being stunned or perhaps being out of fuel
+                    //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+                    if (numTurnsStunned != 0)
+                    {
+                        //abstainSelected = true;
+                        //Debug.Log("currentPosition: " + currentPosition + "  previousPosition: " + previousPosition + "  momentum: " + momentum + "  teleportPosition: " + teleportPosition + "\nnumTurnsStunned!=0");
+                        //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+                    }
+                    hasDecidedButNotEndedTurn = true;
+                    if (timeWaited < turnAnimationTime)
+                    {
+                        timeWaited += Time.deltaTime;
+                        if (timeWaited < turnAnimationTime)
+                        {
+                            //Debug.DrawRay(transform.position, cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime))], Color.red);
+                            //Debug.Log(timeWaited / turnAnimationTime + "% of the way done.");
+                            //Debug.Log("Trying to access cachedSmoothPath[" + ((int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1) + "]\nWhich has a Length value of " + cachedSmoothPath.Length);
+                            //transform.rotation = Quaternion.LookRotation(cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1] - transform.position);
+                            //Debug.Log("n a n i ? ? ? \n" + Mathf.Asin((cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1].y - transform.position.y) / (cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1].x - transform.position.x)));
+                            Vector3 nextPos = cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1];
+                            //Debug.Log(nextPos.ToString("F5") + "and " + transform.position.ToString("F5"));
+                            if (nextPos != transform.position && !Mathf.Approximately(Mathf.Abs(nextPos.x - transform.position.x), 0f))
+                            {
+                                //Debug.Log((nextPos.y - transform.position.y) / (nextPos.x - transform.position.x));
+                                //Debug.Log(Mathf.Rad2Deg * Mathf.Atan(Mathf.Tan(Mathf.Deg2Rad * -300f)));
+                                //Debug.Log(Mathf.Rad2Deg * (Mathf.Atan2((nextPos.y - transform.position.y), (nextPos.x - transform.position.x)) + 1 / 2f * Mathf.PI));
+                                playerVisuals.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Rad2Deg * (Mathf.Atan2((nextPos.y - transform.position.y), (nextPos.x - transform.position.x)) - 1 / 2f * Mathf.PI));
+                            }
+                            int floor = (int)Mathf.Floor(timeWaited * cachedSmoothPath.Length / turnAnimationTime), ceil = (int)Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime);
+                            float actual = timeWaited * cachedSmoothPath.Length / turnAnimationTime;
+                            transform.position = Mathf.Abs((actual - ceil) / (floor - ceil)) * cachedSmoothPath[floor] + Mathf.Abs((actual - floor) / (floor - ceil)) * cachedSmoothPath[ceil - 1];
+                            // Debug.Log(previousPosition + " vs " + cachedSmoothPath[0] + " and " + currentPosition + " vs " + cachedSmoothPath[cachedSmoothPath.Length - 1]);
+                            return;
+                        }
+                    }
+                    hasEndedTurn = true;
+                }
+            }
+        }
+    }
+
+    public void mess(Vector2 temp)
+    {
+        //DETERMINE NEAREST DIRECTION OF THE 8 POSSIBLE
+        if (Vector2.Dot(temp, new Vector2(Mathf.Cos(45f * Mathf.Deg2Rad), Mathf.Sin(45f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(0f * Mathf.Deg2Rad), Mathf.Sin(0f * Mathf.Deg2Rad))) && Vector2.Dot(temp, new Vector2(Mathf.Cos(45f * Mathf.Deg2Rad), Mathf.Sin(45f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(90f * Mathf.Deg2Rad), Mathf.Sin(90f * Mathf.Deg2Rad))))
+        {
+            movement = new Vector2(1, 1);
+        }
+        else if (Vector2.Dot(temp, new Vector2(Mathf.Cos(90f * Mathf.Deg2Rad), Mathf.Sin(90f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(45f * Mathf.Deg2Rad), Mathf.Sin(45f * Mathf.Deg2Rad))) && Vector2.Dot(temp, new Vector2(Mathf.Cos(90f * Mathf.Deg2Rad), Mathf.Sin(90f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(135f * Mathf.Deg2Rad), Mathf.Sin(135f * Mathf.Deg2Rad))))
+        {
+            movement = new Vector2(0, 1);
+        }
+        else if (Vector2.Dot(temp, new Vector2(Mathf.Cos(135f * Mathf.Deg2Rad), Mathf.Sin(135f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(90f * Mathf.Deg2Rad), Mathf.Sin(90f * Mathf.Deg2Rad))) && Vector2.Dot(temp, new Vector2(Mathf.Cos(135f * Mathf.Deg2Rad), Mathf.Sin(135f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(180f * Mathf.Deg2Rad), Mathf.Sin(180f * Mathf.Deg2Rad))))
+        {
+            movement = new Vector2(-1, 1);
+        }
+        else if (Vector2.Dot(temp, new Vector2(Mathf.Cos(180f * Mathf.Deg2Rad), Mathf.Sin(180f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(135f * Mathf.Deg2Rad), Mathf.Sin(135f * Mathf.Deg2Rad))) && Vector2.Dot(temp, new Vector2(Mathf.Cos(180f * Mathf.Deg2Rad), Mathf.Sin(180f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(225f * Mathf.Deg2Rad), Mathf.Sin(225f * Mathf.Deg2Rad))))
+        {
+            movement = new Vector2(-1, 0);
+        }
+        else if (Vector2.Dot(temp, new Vector2(Mathf.Cos(225f * Mathf.Deg2Rad), Mathf.Sin(225f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(180f * Mathf.Deg2Rad), Mathf.Sin(180f * Mathf.Deg2Rad))) && Vector2.Dot(temp, new Vector2(Mathf.Cos(225f * Mathf.Deg2Rad), Mathf.Sin(225f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(270f * Mathf.Deg2Rad), Mathf.Sin(270f * Mathf.Deg2Rad))))
+        {
+            movement = new Vector2(-1, -1);
+        }
+        else if (Vector2.Dot(temp, new Vector2(Mathf.Cos(270f * Mathf.Deg2Rad), Mathf.Sin(270f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(225f * Mathf.Deg2Rad), Mathf.Sin(225f * Mathf.Deg2Rad))) && Vector2.Dot(temp, new Vector2(Mathf.Cos(270f * Mathf.Deg2Rad), Mathf.Sin(270f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(315f * Mathf.Deg2Rad), Mathf.Sin(315f * Mathf.Deg2Rad))))
+        {
+            movement = new Vector2(0, -1);
+        }
+        else if (Vector2.Dot(temp, new Vector2(Mathf.Cos(315f * Mathf.Deg2Rad), Mathf.Sin(315f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(270f * Mathf.Deg2Rad), Mathf.Sin(270f * Mathf.Deg2Rad))) && Vector2.Dot(temp, new Vector2(Mathf.Cos(315f * Mathf.Deg2Rad), Mathf.Sin(315f * Mathf.Deg2Rad))) > Vector2.Dot(temp, new Vector2(Mathf.Cos(0f * Mathf.Deg2Rad), Mathf.Sin(0f * Mathf.Deg2Rad))))
+        {
+            movement = new Vector2(1, -1);
+        }
+        else
+        {
+            movement = new Vector2(1, 0);
+        }
+        //AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH
     }
 
     bool noMovementActionYetCompleted()

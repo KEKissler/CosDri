@@ -92,7 +92,9 @@ public class GameManager : MonoBehaviour {
             for (int j = 0; j < MAP_HGHT; j++)
             {// this whole +1/2f thing is correct here. don't change it.
                 //original index to position mapping
-                tiles[i, j] = Instantiate(tile, new Vector2((i + 1f / 2 - MAP_LEN / 2f), (j + 1f / 2 - MAP_HGHT / 2f)), Quaternion.identity, tileParent.transform);
+                tiles[i, j] = new TileProperties();
+                tiles[i, j].x = (i + 1f / 2 - MAP_LEN / 2f);
+                tiles[i, j].y = (j + 1f / 2 - MAP_HGHT / 2f);
             }
         }
 
@@ -144,10 +146,10 @@ public class GameManager : MonoBehaviour {
                 Vector2 collectiveGrav = new Vector2();
                 foreach (StarProperties s in stars)
                 {
-                    float distToStar = Vector2.Distance(tiles[i, j].transform.position, s.transform.position);
+                    float distToStar = Vector2.Distance(new Vector2(tiles[i, j].x, tiles[i, j].y), s.transform.position);
                     if (distToStar <= s.range)
                     {
-                        collectiveGrav += s.strength * Mathf.Pow((s.range - distToStar)/s.range, 2f) * ((Vector2)(s.transform.position - tiles[i, j].transform.position)).normalized;
+                        collectiveGrav += s.strength * Mathf.Pow((s.range - distToStar)/s.range, 2f) * ((Vector2)(s.transform.position - new Vector3(tiles[i, j].x, tiles[i, j].y, s.transform.position.z))).normalized;
                     }
                     
                 }
