@@ -35,7 +35,7 @@ public class Player : MonoBehaviour {
 
     public Vector3[] cachedSmoothPath = new Vector3[11];// Activator Line needs to know this information
     private float timeWaited = 0.0f;//seconds, reset to 0 every turn
-    private float turnAnimationTime = 0.5f;//seconds, never is changed
+    private float turnAnimationTime = 1.0f;//seconds, never is changed
     private GameObject playerVisuals;
     private bool hasEndedTurn = false, hasDecidedButNotEndedTurn = false;
     public bool isInFirst;// for checkpoint calculations and potentially end of game calculations
@@ -106,7 +106,7 @@ public class Player : MonoBehaviour {
                         //Debug.Log("n a n i ? ? ? \n" + Mathf.Asin((cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1].y - transform.position.y) / (cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1].x - transform.position.x)));
                         Vector3 nextPos = cachedSmoothPath[(int)(Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime)) - 1];
                         //Debug.Log(nextPos.ToString("F5") + "and " + transform.position.ToString("F5"));
-                        if (nextPos != transform.position && !Mathf.Approximately(Mathf.Abs(nextPos.x-transform.position.x),0f))
+                        if (Vector2.Distance(new Vector2(transform.position.x, transform.position.y), new Vector2(nextPos.x, nextPos.y)) > 0.099)
                         {
                             //Debug.Log((nextPos.y - transform.position.y) / (nextPos.x - transform.position.x));
                             //Debug.Log(Mathf.Rad2Deg * Mathf.Atan(Mathf.Tan(Mathf.Deg2Rad * -300f)));
@@ -115,12 +115,16 @@ public class Player : MonoBehaviour {
                         }
                         int floor = (int)Mathf.Floor(timeWaited * cachedSmoothPath.Length / turnAnimationTime), ceil = (int)Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime);
                         float actual = timeWaited * cachedSmoothPath.Length / turnAnimationTime;
-                        transform.position = Mathf.Abs((actual - ceil) / (floor - ceil)) * cachedSmoothPath[floor] + Mathf.Abs((actual - floor) / (floor - ceil)) * cachedSmoothPath[ceil - 1];
-                       // Debug.Log(previousPosition + " vs " + cachedSmoothPath[0] + " and " + currentPosition + " vs " + cachedSmoothPath[cachedSmoothPath.Length - 1]);
+                        Vector2 test = Mathf.Abs((actual - ceil) / (floor - ceil)) * cachedSmoothPath[floor] + Mathf.Abs((actual - floor) / (floor - ceil)) * cachedSmoothPath[ceil - 1];
+                        transform.position = Vector2.Lerp(transform.position, test, 0.5f);// linear B)
+                        cam.GetComponent<CameraController>().focus = this.gameObject;
+                        cam.GetComponent<CameraController>().snapToFocus = true;
+                        // Debug.Log(previousPosition + " vs " + cachedSmoothPath[0] + " and " + currentPosition + " vs " + cachedSmoothPath[cachedSmoothPath.Length - 1]);
                         return;
                     }
                 }
                 hasEndedTurn = true;
+                cam.GetComponent<CameraController>().snapToFocus = false;
             }
         }
     }
@@ -358,9 +362,6 @@ public class Player : MonoBehaviour {
         previousPosition = currentPosition;// previous position really means position at the start of a turn, before anything moves you; ie now.
         currentPosition += gravity;// as determined above
         currentPosition += momentum;// as determined by other movement function
-        //snapCamera to this
-        //animate motion
-        //free up camera
         transform.position = posRealignedToGrid(new Vector3(currentPosition.x, currentPosition.y, zPos));
 
 

@@ -72,7 +72,9 @@ public class CameraController : MonoBehaviour {
 	void FixedUpdate () {
         if (snapToFocus)// automatic averaging mode
         {
+            float cachedZ = transform.position.z;
             transform.position = weighting * transform.position + (1 - weighting) * focus.transform.position;
+            transform.position = new Vector3(transform.position.x, transform.position.y, cachedZ);
         }//edge pan manual movement mode
         else
         {
@@ -108,14 +110,6 @@ public class CameraController : MonoBehaviour {
                     transform.position = new Vector3(transform.position.x, transform.position.y + panSpeed, transform.position.z);
                 }
             }
-        }
-    }
-
-    public void focusTo(GameObject other, float weight, bool enable)// public function to do the focus thing with this cam to a given object
-    {
-        if (enable)
-        {
-            transform.position = weighting * transform.position + (1 - weighting) * other.transform.position;
         }
     }
 }
