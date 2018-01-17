@@ -16,9 +16,10 @@ public class Player : MonoBehaviour {
     public int playerNum;// assigned a value in Start()
     public int numTurnsStunned = 0;// if set to a value greater than 1, removes turn and decrements this number until it is 0
     public float zPos;// determines render layer of the players
-    Vector2 gravity = new Vector2(), momentum = new Vector2(), movement = new Vector2(), currentPosition = new Vector3(), previousPosition = new Vector2(), teleportPosition = new Vector2();// positional things that make sense
+    Vector2 gravity = new Vector2(), momentum = new Vector2(), currentPosition = new Vector3(), previousPosition = new Vector2(), teleportPosition = new Vector2();// positional things that make sense
+    public Vector2 movement = new Vector2();
     // a note on teleport position, it is the position from which you teleported, not to where you teleported.
-    public Sprite thrusterRange, teleporterRange;
+    public Sprite thrusterRangeError, teleporterRangeError, thrusterRange, teleporterRange;
     public Camera cam;
     public GameManager gameManager;
     public GameObject targetingReticulePrefab;
@@ -116,7 +117,7 @@ public class Player : MonoBehaviour {
                         int floor = (int)Mathf.Floor(timeWaited * cachedSmoothPath.Length / turnAnimationTime), ceil = (int)Mathf.Ceil(timeWaited * cachedSmoothPath.Length / turnAnimationTime);
                         float actual = timeWaited * cachedSmoothPath.Length / turnAnimationTime;
                         Vector2 test = Mathf.Abs((actual - ceil) / (floor - ceil)) * cachedSmoothPath[floor] + Mathf.Abs((actual - floor) / (floor - ceil)) * cachedSmoothPath[ceil - 1];
-                        transform.position = Vector2.Lerp(transform.position, test, 0.5f);// linear B)
+                        transform.position = Vector2.Lerp(transform.position, test, 0.5f);// not linear but still smooth looking B)
                         cam.GetComponent<CameraController>().focus = this.gameObject;
                         cam.GetComponent<CameraController>().snapToFocus = true;
                         // Debug.Log(previousPosition + " vs " + cachedSmoothPath[0] + " and " + currentPosition + " vs " + cachedSmoothPath[cachedSmoothPath.Length - 1]);
@@ -133,14 +134,17 @@ public class Player : MonoBehaviour {
     {
         if (thrusterOverdriveSelected && thrusterOverdriveSelect())// if player wants to use overdrive and if overdrive successfully activates
         {
+            sr.enabled = false;
             return false;
         }
         else if (teleportSelected && teleportSelect()) // if want tp and tp succeeds
         {
+            sr.enabled = false;
             return false;
         }
         else if (abstainSelected)// if the player wants to end the turn
         {
+            sr.enabled = false;
             return false;
         }
         return true;
@@ -175,15 +179,17 @@ public class Player : MonoBehaviour {
 
     void checkForInput()
     {
-        if (Input.GetKeyDown(KeyCode.W) && fuel > 0)
+        if (Input.GetKeyDown(KeyCode.W) /*&& fuel > 0*/)
         {
             thrusterOverdriveSelected = true;
             targetingReticule.setColor(Color.gray);
+            sr.enabled = true;
         }
-        else if (Input.GetKeyDown(KeyCode.E) && fuel > 1)
+        else if (Input.GetKeyDown(KeyCode.E) /*&& fuel > 1*/)
         {
             teleportSelected = true;
             targetingReticule.setColor(Color.gray);
+            sr.enabled = true;
         }
         else if (Input.GetKeyDown(KeyCode.Space))
         {
@@ -206,7 +212,7 @@ public class Player : MonoBehaviour {
     {
         if (Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).x - currentPosition.x) <= 2.1f && Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).y - currentPosition.y) <= 2.1f)
         {
-            sr.enabled = false;
+            sr.sprite = thrusterRange;
             lineRen.enabled = true;
             altLineRen.enabled = true;
             showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, false);
@@ -215,14 +221,14 @@ public class Player : MonoBehaviour {
         {
             lineRen.enabled = false;
             altLineRen.enabled = false;
-            sr.sprite = thrusterRange;
-            //sr.transform.rotation = new Quaternion();
-            sr.enabled = true;
+            sr.sprite = thrusterRangeError;
         }
         
         if (Input.GetKeyDown(KeyCode.Mouse1))// cancel selection
         {
             thrusterOverdriveSelected = false;
+            lineRen.enabled = false;
+            altLineRen.enabled = false;
             return false;
         }
 
@@ -249,7 +255,7 @@ public class Player : MonoBehaviour {
     {
         if (Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).x - currentPosition.x) <= 5.1f && Mathf.Abs(resolveToTile(Input.mousePosition.x, Input.mousePosition.y).y - currentPosition.y) <= 5.1f)
         {
-            sr.enabled = false;
+            sr.sprite = teleporterRange;
             lineRen.enabled = true;
             altLineRen.enabled = true;
             showFuturePath(numTurnsToPredictMovement, resultantIndicator, true, false);
@@ -258,15 +264,14 @@ public class Player : MonoBehaviour {
         {
             lineRen.enabled = false;
             altLineRen.enabled = false;
-            sr.sprite = teleporterRange;
-            //sr.transform.rotation = new Quaternion();
-            sr.enabled = true;
+            sr.sprite = teleporterRangeError;
         }
-        //showFuturePath(numTurnsToPredictMovement, resultantIndicator, true);
 
         if (Input.GetKeyDown(KeyCode.Mouse1))// cancel selection
         {
             teleportSelected = false;
+            lineRen.enabled = false;
+            altLineRen.enabled = false;
             return false;
         }
 
@@ -377,7 +382,7 @@ public class Player : MonoBehaviour {
         if (teleportSelected)
         {
             // a teleport when activated, will set teleport position to be current position, then it will change current position to wherever was selected
-            momentum = teleportPosition - previousPosition;
+            momentum = teleportPosition - previousPosition + movement;
             Debug.Log("Applying momemtum in special case: Teleport");
             teleportSelected = false;
         }
@@ -386,8 +391,7 @@ public class Player : MonoBehaviour {
             // if no teleport, positional change over the course of this turn is set to momentum, to be applied next turn
             momentum = currentPosition + movement - previousPosition;
         }
-        Debug.Log("Movement choice is now " + movement);
-        Debug.Log("Momentum is now " + momentum + "\nwhich is equal to currentPosition: " + currentPosition + " + movement: " + movement + " - previousPosition: " + previousPosition);// + "; currPos - prevPos =  " + currentPosition + " - " + previousPosition);
+        //Debug.Log("Movement choice is now " + movement);
 
 
 
@@ -462,7 +466,6 @@ public class Player : MonoBehaviour {
                 {
                     // use the current mouse position as the theoretical end point of this turn's movement
                     tempMomentum = resolveToTile(Input.mousePosition.x, Input.mousePosition.y) - tempPreviousPosition;
-                   // Debug.Log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" + tempMomentum + " = " + Input.mousePosition.x + " + " + Input.mousePosition.y + " - " + tempPreviousPosition);
                     firstTurn = false;
 
                 }

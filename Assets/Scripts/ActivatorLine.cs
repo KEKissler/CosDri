@@ -133,7 +133,7 @@ public class ActivatorLine : MonoBehaviour {
                 return liesWithinBothSegments(new Vector2((((first.y - 1 / paramSlope * first.x) - lineStart.y)/ (-1 / paramSlope)), lineStart.y), first, second);
             }
             //float a0 = -1 / slope, b0 = 1, c0 = (lineStart.y - 1 / slope * lineStart.x),
-              //      a1 = -1 / paramSlope, b1 = 1, c1 = (first.y - 1 / paramSlope * first.x);
+                //      a1 = -1 / paramSlope, b1 = 1, c1 = (first.y - 1 / paramSlope * first.x);
             //solve param line for y = lineStart.y
             //return liesWithinBothSegments(new Vector2(), first, second);
         }

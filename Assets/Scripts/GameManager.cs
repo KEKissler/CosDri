@@ -38,6 +38,9 @@ public class GameManager : MonoBehaviour {
     public int numCheckpointsRequiredToWin;// the number of checkpoints any player must clear in order to win
     private static int winningPlayer = -1;// holds the index of the player that has won the game, -1 if no one has yet
 
+    //Activator vars
+    public Activator[] activators;
+
     // player vars
     public int playersToCreate;// num characters in this game. 1-4 are valid entries
     public int fuelSpawnAmount, maxFuelLimit; // default fuel setting specifications to pass along to player instances
@@ -300,6 +303,8 @@ public class GameManager : MonoBehaviour {
             p.getInstance().transform.position = new Vector3(p.camDelta.x * this.mainCamera.transform.position.x, p.camDelta.y * this.mainCamera.transform.position.y, p.getInstance().transform.position.z);
         }
     }
+
+
 
     public bool activateActivatorLines(Player target)
     {
