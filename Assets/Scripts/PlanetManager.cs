@@ -9,12 +9,13 @@ public class PlanetManager : MonoBehaviour {
     private Material mat;
     private Texture selectedTex;
     private Color selectedColor;
-    private Vector3 rotation;
     public Vector3 rotToUse;
+    private Quaternion rotation = new Quaternion();
 
 	// Use this for initialization
 	void Start () {
-        rotation = (!useProvidedRotation)?new Vector3(Random.Range(-5.0f, 5.0f), Random.Range(-5.0f, 5.0f), 0f):rotToUse;
+        rotation.eulerAngles = (!useProvidedRotation) ? new Vector3(Random.Range(-5.0f, 5.0f), Random.Range(-5.0f, 5.0f), 0f) : rotToUse;
+
         mat =this.GetComponent<MeshRenderer>().material;
         if (selectColorsOnlyFromList)
         {
@@ -31,10 +32,7 @@ public class PlanetManager : MonoBehaviour {
     }
 	void FixedUpdate()
     {
-        Quaternion newQuat = transform.rotation;
-        newQuat.eulerAngles += rotation;
-        transform.rotation = newQuat;
-        //transform.rotation.eulerAngles += rotationSpeed * rotation;
+        transform.rotation = transform.rotation * rotation;
     }
 	// Update is called once per frame
 	void Update () {
@@ -54,7 +52,9 @@ public class PlanetManager : MonoBehaviour {
         }
         if (Input.GetKeyDown(KeyCode.O) && !useProvidedRotation)
         {
-            rotation = new Vector3(Random.Range(-5.0f, 5.0f), Random.Range(-5.0f, 5.0f), 0f);
+            Quaternion nextQuat = new Quaternion();
+            nextQuat.eulerAngles = new Vector3(Random.Range(-5.0f, 5.0f), Random.Range(-5.0f, 5.0f), 0f);
+            rotation = nextQuat;
         }
 	}
 }
