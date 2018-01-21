@@ -10,6 +10,7 @@ public class TargetingReticuleController : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
         sr = GetComponent<SpriteRenderer>();
+        transform.position = new Vector3(transform.position.x, transform.position.y, cam.transform.position.z + 10);
 	}
 	
 	// Update is called once per frame

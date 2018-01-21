@@ -11,11 +11,11 @@ public class Player : MonoBehaviour {
     public int FUEL_LIMIT;// plz dont change this value, max fuel allowed
     public int MAP_LEN, MAP_HGHT;// just for initialization purposes, this allows this player to adjust their own offset correctly
     private bool cursorIsActive = false;// for allowing or disallowing this player's  ability to select tiles. Set by the gameManager to start a player's turn
-    private bool thrusterOverdriveSelected = false, teleportSelected = false, abstainSelected = false; // which movement skill has this players selected
+    public bool thrusterOverdriveSelected = false, teleportSelected = false, abstainSelected = false; // which movement skill has this players selected
     private bool miningLaserSelected = false, missileSelected = false, piercingMissileSelected = false;// which of the combat abilities has this player selected
     public int playerNum;// assigned a value in Start()
     public int numTurnsStunned = 0;// if set to a value greater than 1, removes turn and decrements this number until it is 0
-    public float zPos;// determines render layer of the players
+    public float zPos;// determines z position of the players
     Vector2 gravity = new Vector2(), momentum = new Vector2(), currentPosition = new Vector3(), previousPosition = new Vector2(), teleportPosition = new Vector2();// positional things that make sense
     public Vector2 movement = new Vector2();
     // a note on teleport position, it is the position from which you teleported, not to where you teleported.
@@ -30,9 +30,9 @@ public class Player : MonoBehaviour {
     public int numTurnsToPredictMovement;
     public float smoothness;
 
-    private TargetingReticuleController targetingReticule;
+    [HideInInspector]public TargetingReticuleController targetingReticule;
     private SpriteRenderer targetingReticuleSR;
-    private SpriteRenderer sr;
+    [HideInInspector]public SpriteRenderer sr;
 
     public Vector3[] cachedSmoothPath = new Vector3[11];// Activator Line needs to know this information
     private float timeWaited = 0.0f;//seconds, reset to 0 every turn
@@ -59,7 +59,6 @@ public class Player : MonoBehaviour {
         GameObject temp = Instantiate(targetingReticulePrefab);
         targetingReticuleSR = temp.GetComponent<SpriteRenderer>();
         targetingReticule = temp.GetComponent<TargetingReticuleController>();
-        targetingReticule.GetComponent<SpriteRenderer>().sortingOrder = 10;
         targetingReticule.cam = cam;
         targetingReticule.GetComponent<SpriteRenderer>().color = reticuleColor;
 
@@ -75,9 +74,13 @@ public class Player : MonoBehaviour {
     {
         if (cursorIsActive)
         {
-            // render player
+            //render player
             //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
             // if its the player's turn still and more input is needed to advance
+            if(numTurnsStunned != 0)
+            {
+                abstainSelected = true;
+            }
             if (!hasDecidedButNotEndedTurn /*&& fuel > 0*/ && noMovementActionYetCompleted() && numTurnsStunned == 0)
             {
                 if(!teleportSelected && !thrusterOverdriveSelected)//absolutely required as you can reinterpret commands on the fly otherwise
@@ -90,9 +93,12 @@ public class Player : MonoBehaviour {
                 //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
                 if (numTurnsStunned != 0)
                 {
+                    //timeWaited = 0.0f;
                     //abstainSelected = true;
                     //Debug.Log("currentPosition: " + currentPosition + "  previousPosition: " + previousPosition + "  momentum: " + momentum + "  teleportPosition: " + teleportPosition + "\nnumTurnsStunned!=0");
-                    //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
+                    //movement = new Vector2();
+                    //showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, false);
+
                 }
                 hasDecidedButNotEndedTurn = true;
                 if (timeWaited < turnAnimationTime)
@@ -125,12 +131,12 @@ public class Player : MonoBehaviour {
                     }
                 }
                 hasEndedTurn = true;
-                cam.GetComponent<CameraController>().snapToFocus = false;
+                //cam.GetComponent<CameraController>().snapToFocus = false;
             }
         }
     }
 
-    bool noMovementActionYetCompleted()
+    public bool noMovementActionYetCompleted()
     {
         if (thrusterOverdriveSelected && thrusterOverdriveSelect())// if player wants to use overdrive and if overdrive successfully activates
         {
@@ -167,10 +173,10 @@ public class Player : MonoBehaviour {
             targetingReticule.setColor(reticuleColor);
             return false;
         }
-        // a note about abstain, this is not the skip turn option. This option merely skips the movement action part of ones turn and goes straight to combat.
-        // If this is selected there should exist a go back option for the combat action, allowing the player to essentially fully reset their turn.
+        // a note about abstain, this is the skip turn option.
         else if (abstainSelected)
         {
+            showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, false);
             targetingReticule.setColor(reticuleColor);
             return false;
         }
@@ -196,7 +202,8 @@ public class Player : MonoBehaviour {
            // Debug.Log("currentPosition: " + currentPosition + "  previousPosition: " + previousPosition + "  momentum: " + momentum + "  teleportPosition: " + teleportPosition);
             showFuturePath(numTurnsToPredictMovement, resultantIndicator, false, true);
             abstainSelected = true;
-        }else if (Input.GetKeyDown(KeyCode.P))
+        }
+        else if (Input.GetKeyDown(KeyCode.P))
         {
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
@@ -229,6 +236,7 @@ public class Player : MonoBehaviour {
             thrusterOverdriveSelected = false;
             lineRen.enabled = false;
             altLineRen.enabled = false;
+            sr.enabled = false;
             return false;
         }
 
@@ -272,6 +280,7 @@ public class Player : MonoBehaviour {
             teleportSelected = false;
             lineRen.enabled = false;
             altLineRen.enabled = false;
+            sr.enabled = false;
             return false;
         }
 

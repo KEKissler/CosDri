@@ -258,6 +258,8 @@ public class GameManager : MonoBehaviour {
         tempCam.leftMapLimit = MAP_LEN / -2f;
         tempCam.upMapLimit = MAP_HGHT / 2f;
         tempCam.downMapLimit = MAP_HGHT / -2f;
+        tempCam.focus =  players[selectedPlayer].gameObject;
+        tempCam.snapToFocus = true;
 
         //disables visuals for each grav tile
         tileParent.SetActive(false);
@@ -343,5 +345,9 @@ public class GameManager : MonoBehaviour {
     public int getMapHeight()
     {
         return MAP_HGHT;
+    }
+    public int getSelectedPlayer()
+    {
+        return selectedPlayer;
     }
 }

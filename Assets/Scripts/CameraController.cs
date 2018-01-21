@@ -5,7 +5,7 @@ using UnityEngine;
 public class CameraController : MonoBehaviour {
     public float panSpeed, panBoxPercentageScreenSize, zoomSpeed, maxCamSize, minCamSize;
     public GameObject focus;// object around which to focus
-    public float weighting; // between 0 and 1, weights the averaging (effectively speed) of positions of the camera and the focus
+    public float weighting, snapToDistance; // between 0 and 1, weights the averaging (effectively speed) of positions of the camera and the focus
     public bool snapToFocus;// if true, moves camera towards focus, else doesnt mess with camera
     private Camera cam;
     public float leftMapLimit, rightMapLimit, upMapLimit, downMapLimit;
@@ -66,6 +66,9 @@ public class CameraController : MonoBehaviour {
         }
         //applying correction
         transform.position -= toCorrectCamPos;
+        //if you have to correct for the camera trying to move outside the map, it shouldn't keep trying to move that way if snapToFocus is making it do that
+        if (toCorrectCamPos.magnitude != 0)
+            snapToFocus = false;
 
     }
 
@@ -75,6 +78,8 @@ public class CameraController : MonoBehaviour {
             float cachedZ = transform.position.z;
             transform.position = weighting * transform.position + (1 - weighting) * focus.transform.position;
             transform.position = new Vector3(transform.position.x, transform.position.y, cachedZ);
+            if (Vector2.Distance(new Vector2(transform.position.x, transform.position.y), new Vector2(focus.transform.position.x, focus.transform.position.y)) < snapToDistance)
+                snapToFocus = false;
         }//edge pan manual movement mode
         else
         {
