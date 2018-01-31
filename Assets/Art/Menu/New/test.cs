@@ -7,7 +7,8 @@ using UnityEngine.UI;
 public class test : MonoBehaviour {
 
     public GameObject mainParent, playParent;
-    public InputField playerCountInput;
+    //public InputField playerCountInput;
+    private int playersToCreate;
     // Use this for initialization
     void Start () {
 		
@@ -33,17 +34,23 @@ public class test : MonoBehaviour {
     {
         mainParent.SetActive(false);
         playParent.SetActive(true);
+        SceneManager.LoadScene("CosDri_4");
     }
 
     public void launchGame(string input)
     {
-        int playersToCreate = int.Parse(playerCountInput.text);
+        //playersToCreate = int.Parse(playerCountInput.text);
         if (playersToCreate > 4) playersToCreate = 4;
         
         Debug.Log(playersToCreate);
-        SceneManager.LoadScene("CosDri_3");
-        GameManager gm = FindObjectOfType<GameManager>();
-        gm.playersToCreate = playersToCreate;
+        SceneManager.LoadScene("CosDri_4");
+        Invoke("delayedExecution", 2);
         //SceneManager.LoadScene("MainMenu");
+    }
+
+    public void delayedExecution()
+    {
+        GameManager gm = FindObjectOfType<GameManager>();
+        if (gm) gm.playersToCreate = 1;// playersToCreate;
     }
 }
